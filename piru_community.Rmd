@@ -24,5 +24,20 @@ environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>%
 
 ```
 
+Caluclate % of ambient par in plots
+```{r}
 
+```
+
+
+Anova and Tukeys test to test for signifcance of soil moisture and %ambient par between communities
+```{r}
+
+```
+
+
+Make some ggplots of %ambient par and soil moisture to visualize data
+```{r}
+
+```
 
