@@ -9,5 +9,20 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(tidyverse)
+library(lubridate)
 ```
+
+
+Reading in data
+```{r}
+community_types <- read.csv(here("data", "community_types.csv"))
+environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>% 
+  select(!community) %>% 
+  full_join(community_types, join_by = "plot") %>% 
+  mutate(date = mdy(date))
+
+
+```
+
+
 
