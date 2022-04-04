@@ -19,25 +19,57 @@ community_types <- read.csv(here("data", "community_types.csv"))
 environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>% 
   select(!community) %>% 
   full_join(community_types, join_by = "plot") %>% 
-  mutate(date = mdy(date))
+  mutate(date = mdy(date)) %>% 
+  mutate(community = as.character(community))
+
+#Coerced community to character so ggplot recognizes as discrete variable
 
 
 ```
 
 Caluclate % of ambient par in plots
 ```{r}
-
+environmental_data <- environmental_data %>% 
+  mutate(par_prop = par_plot / par_ambient * 100)
 ```
 
 
-Anova and Tukeys test to test for signifcance of soil moisture and %ambient par between communities
+Anova and Tukeys test to test for significance of soil moisture and %ambient par between communities
 ```{r}
+soil_moisture_anova <- aov(soil_moisture ~ factor(community), data = environmental_data)
+#Anova rejected null of no difference between means at 95% confidence level
+soil_moisture_tukey <- TukeyHSD(soil_moisture_anova, conf.level = .95)
+#Community 2 vs. 1 and 3 vs 2 are significantly different at 95% confidence level
 
+par_prop_anova <- aov(par_prop ~ factor(community), data = environmental_data)
+#Anova rejected null of no difference between means at 95% confidence level
+par_prop_tukey <- TukeyHSD(par_prop_anova, conf.level = .95)
+#Community 2 vs 1 are significantly different at 95% confidence level
+
+anova(soil_moisture_anova)
+soil_moisture_tukey
+anova(par_prop_anova)
+par_prop_tukey
 ```
-
 
 Make some ggplots of %ambient par and soil moisture to visualize data
 ```{r}
+#Scatter plot of %ambient par vs soil moisture with color indicating community
+ggplot(data = environmental_data) +
+  geom_point(mapping = aes(x = par_prop, y = soil_moisture, color = community)) +
+  scale_color_discrete() +
+  theme_light() +
+  labs(caption = "Figure 1: Percent of ambient par reaching plot versus soil moisture for three community types",
+       x = "Percent of Ambient Par Reaching Plot",
+       y = "Soil Moisture",
+       color = "Community Type:") +
+  theme(plot.caption = element_text(face = "bold", size = 11, hjust = 0),
+        legend.position = "top",
+        axis.title = element_text(size = 10),
+        axis.text = element_text(size = 7))
 
+#Visualize results of HSD test
+plot(soil_moisture_tukey)
+plot(par_prop_tukey)
 ```
 
