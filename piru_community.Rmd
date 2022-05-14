@@ -109,8 +109,5 @@ ggplot(data = environmental_data) +
         legend.position = "top",
         axis.title = element_text(size = 10),
         axis.text = element_text(size = 7))
-
-#Geom_jitter + reduced alpha + confidence int
-#Seperate anovas for each date - figure out tukey + anovas for each date subsetting (map)
 ```
 
