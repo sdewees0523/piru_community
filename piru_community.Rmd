@@ -178,3 +178,50 @@ ggplot(data = environmental_data) +
         axis.text = element_text(size = 7))
 ```
 
+## Graphs soil moisture and PAR with date as the x-axis and colored by community. Graphing mean and 95% confidence intervals. 
+
+## lm(percent_survival~soil_moisture + par + species)
+
+## lm(percent_survival~soil_moisture) for each species
+
+## lm(perecent_survival~par) for each species
+
+## ggplot survival and each environmental measurement + geom_smooth(type = "lm")
+
+## repeat all of the above but with height. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
