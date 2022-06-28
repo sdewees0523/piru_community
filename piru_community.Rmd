@@ -24,7 +24,71 @@ environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>%
 
 #Coerced community to character so ggplot recognizes as discrete variable
 
+survival_data <- read.csv(here("data", "survival.csv")) %>% 
+  distinct() %>% 
+  select(1:6) %>%
+  mutate(species = case_when(species == "ADFA" ~ "adfa", 
+                             species == "ARCA" ~ "arca",
+                             species %in% c("ENCA", "ENFA") ~ "enca",
+                             species == "ERFA" ~ "erfa",
+                             species == "HEAR" ~ "hear",
+                             species %in% c("MALA", "AMALA", "MALA?", "MELA") ~ "mala",
+                             species %in% c("RHOU", "RHOV", "RHOB") ~ "rhov",
+                             species == "SAAP" ~ "saap",
+                             species %in% c("SALE", "SALEU")~ "sale",
+                             species %in% c("SAME", "SAAME") ~ "same",
+                             species %in% c("CECU", "GECU") ~ "cecu",
+                             species %in% c("CEOL", "EOL", " CEOL") ~ "ceol",
+                             species %in% c("RHIL", "RAIL") ~ "rhil",
+                             TRUE ~ species)) %>% 
+  group_by(plot, date, species) %>% 
+  mutate(number_alive = sum(alive, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  select(!id & !alive & !notes) %>% 
+  distinct() %>% 
+  filter(species %in% c("sale", "saap", "arca", "erfa", "same", "enca", "adfa", "rhov", "mala", "ceol", "cecu", "rhil", "hear")) %>% 
+  right_join(community_types, by = "plot") %>% 
+  mutate(number_planted = case_when(community %in% c(1,2) & species == "sale" ~ 10,
+                                    community %in% c(1,2) & species == "saap" ~ 10,
+                                    community %in% c(1,2) & species == "arca" ~ 10,
+                                    community %in% c(1,2) & species == "erfa" ~ 7,
+                                    community %in% c(1,2) & species == "same" ~ 7,
+                                    community %in% c(1,2) & species == "enca" ~ 10,
+                                    community == 1 & species == "ceol" ~ 7,
+                                    community == 1 & species == "cecu" ~ 5,
+                                    community == 1 & species == "hear" ~ 7,
+                                    community == 1 & species == "rhil" ~ 7,
+                                    community == 2 & species == "adfa" ~ 9,
+                                    community == 2 & species == "rhov" ~ 9,
+                                    community == 2 & species == "mala" ~ 8,
+                                    community == 3 & species == "ceol" ~ 13,
+                                    community == 3 & species == "cecu" ~ 5,
+                                    community == 3 & species == "hear" ~ 12,
+                                    community == 3 & species == "rhil" ~ 12,
+                                    community == 3 & species == "adfa" ~ 13,
+                                    community == 3 & species == "rhov" ~ 13,
+                                    community == 3 & species == "mala" ~ 12),
+         number_planted = case_when(as.numeric(number_alive) > as.numeric(number_planted) ~ as.numeric(number_alive),
+                                    as.numeric(number_alive) <= as.numeric(number_planted) ~ as.numeric(number_planted)),
+         percent_alive = number_alive/number_planted * 100,
+         date = mdy(date),
+         month = month(date, label = TRUE),
+         community = case_when(community == 1 ~ "sage_obligate_seeder/resprouter",
+                               community == 2 ~ "sage_facultative_resprouter",
+                               community == 3 ~ "chaparral_only"))
 
+survival_summary <- survival_data %>% 
+  group_by(community, month, species) %>% 
+  summarise(mean_survival = mean(percent_alive, na.rm = TRUE)) %>% 
+  filter(mean_survival != "NaN")
+  
+
+
+ggplot(survival_summary, aes(x = species, y = mean_survival, col= as.factor(community)), size = 5) +
+  geom_point()+
+  facet_wrap(~month) +
+  theme_classic() +
+  theme(text = element_text(size = 10))
 ```
 
 Caluclate % of ambient par in plots
@@ -74,6 +138,7 @@ Make some ggplots of %ambient par and soil moisture to visualize data
 ggplot(data = environmental_data) +
   geom_point(mapping = aes(x = par_prop, y = soil_moisture, color = community), alpha = .5) +
   geom_smooth(mapping = aes(x = par_prop, y = soil_moisture, color = community, fill = community), method = "lm", formula = y ~ x, alpha = .05) +
+  facet_wrap(~date)+
   theme_classic() +
   labs(caption = "Figure 1: Percent of ambient par blocked by plants versus soil moisture for three community types",
        x = "Percent of Ambient Par Blocked",
@@ -89,6 +154,7 @@ ggplot(data = environmental_data) +
 #Jitter plot for soil moisture
 ggplot(data = environmental_data) +
   geom_jitter(mapping = aes(x = community, y = soil_moisture), width = .2, alpha = .5, color = "blue") +
+  facet_wrap(~date) +
   theme_classic() +
   labs(caption = "Figure 2: Soil moisture across community types.",
        x = "Community Type",
@@ -101,6 +167,7 @@ ggplot(data = environmental_data) +
 #Jitter plot for par_prop
 ggplot(data = environmental_data) +
   geom_jitter(mapping = aes(x = community, y = par_prop), width = .2, alpha = .5, color = "orange") +
+  facet_wrap(~date) +
   theme_classic() +
   labs(caption = "Figure 3: Proportion of ambient PAR blocked across community types.",
        x = "Community Type",
