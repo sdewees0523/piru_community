@@ -282,7 +282,7 @@ env_height_data <- height_data %>%
   right_join(environmental_summary, by = c("plot"))
 ```
 
-#something is wrong 
+#summaries
 ```{r}
 summary(lm(height ~ soil_moisture + par_prop + species, env_height_data))
 ```
