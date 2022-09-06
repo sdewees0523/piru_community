@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(tidyverse)
 library(lubridate)
+library(broom)
+library(gmodels)
 ```
 
 
@@ -26,10 +28,10 @@ environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>%
 
 survival_data <- read.csv(here("data", "survival.csv")) %>% 
   distinct() %>% 
-  select(1:6) %>%
+  select(1:6) %>% 
   mutate(species = case_when(species == "ADFA" ~ "adfa", 
                              species == "ARCA" ~ "arca",
-                             species %in% c("ENCA", "ENFA") ~ "enca",
+                             species %in% c("E0CA", "E0FA") ~ "enca",
                              species == "ERFA" ~ "erfa",
                              species == "HEAR" ~ "hear",
                              species %in% c("MALA", "AMALA", "MALA?", "MELA") ~ "mala",
@@ -40,11 +42,12 @@ survival_data <- read.csv(here("data", "survival.csv")) %>%
                              species %in% c("CECU", "GECU") ~ "cecu",
                              species %in% c("CEOL", "EOL", " CEOL") ~ "ceol",
                              species %in% c("RHIL", "RAIL") ~ "rhil",
-                             TRUE ~ species)) %>% 
+                             TRUE ~ species),
+         alive = replace_na(alive, 0)) %>%
   group_by(plot, date, species) %>% 
   mutate(number_alive = sum(alive, na.rm = TRUE)) %>% 
   ungroup() %>% 
-  select(!id & !alive & !notes) %>% 
+  select(!id & !alive & !X0otes) %>% 
   distinct() %>% 
   filter(species %in% c("sale", "saap", "arca", "erfa", "same", "enca", "adfa", "rhov", "mala", "ceol", "cecu", "rhil", "hear")) %>% 
   right_join(community_types, by = "plot") %>% 
@@ -75,61 +78,87 @@ survival_data <- read.csv(here("data", "survival.csv")) %>%
          month = month(date, label = TRUE),
          community = case_when(community == 1 ~ "sage_obligate_seeder/resprouter",
                                community == 2 ~ "sage_facultative_resprouter",
-                               community == 3 ~ "chaparral_only"))
+                               community == 3 ~ "chaparral_only")) %>% 
+  drop_na(number_planted)
 
 survival_summary <- survival_data %>% 
   group_by(community, month, species) %>% 
-  summarise(mean_survival = mean(percent_alive, na.rm = TRUE)) %>% 
-  filter(mean_survival != "NaN")
+  summarise(mean_survival = mean(percent_alive, na.rm = TRUE),
+            ci_lower = ci(percent_alive, na.rm =TRUE)[2],
+            ci_upper = ci(percent_alive, na.rm = TRUE)[3])
   
 
 
-ggplot(survival_summary, aes(x = species, y = mean_survival, col= as.factor(community)), size = 5) +
+ggplot(survival_summary, aes(x = month, y = mean_survival, col= as.factor(community)), size = 5) +
   geom_point()+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.3 )+
+  facet_wrap(~species) +
+  theme_classic() +
+  theme(text = element_text(size = 10))+
+  labs(y = "Percent survival",
+       color = "community type")
+```
+
+```{r}
+community_survival <- survival_data %>% 
+  mutate(functional_group = case_when(species %in% c("sale", "saap", "arca", "erfa", "same", "enca")~ "sage_scrub",
+                                      species %in% c("adfa", "rhov", "mala", "ceol", "cecu", "rhil", "hear")~ "chaparral")) %>% 
+  group_by(community, month, functional_group) %>% 
+  summarise(mean_survival = mean(percent_alive, na.rm = TRUE),
+            ci_lower = ci(percent_alive, na.rm =TRUE)[2],
+            ci_upper = ci(percent_alive, na.rm = TRUE)[3])
+  
+ggplot(community_survival, aes(x = as.factor(community), y = mean_survival, col= functional_group), alpha = 0.5) +
+  geom_point()+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.3 )+
   facet_wrap(~month) +
   theme_classic() +
-  theme(text = element_text(size = 10))
+  theme(text = element_text(size = 10),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ylim(0,100)+
+  labs(x = "community type",
+       y = "Percent survival")
+
+
 ```
 
 Caluclate % of ambient par in plots
 ```{r}
 environmental_data <- environmental_data %>% 
-  mutate(par_prop = 100 - (par_plot / par_ambient) * 100)
+  mutate(par_prop = 100 - (par_plot / par_ambient) * 100,
+         community = as.factor(community),
+         date = case_when(is.na(date) == TRUE ~ ymd("2022-07-15"),
+                          TRUE ~ date))
 ```
 
 
 Anova and Tukeys test to test for significance of soil moisture and %ambient par between communities
 ```{r}
-date_key <- environmental_data %>% 
-    group_by(date) %>% 
-    summarise()
+par_data_stats <- environmental_data %>% 
+  select(!plot & !par_ambient & !par_plot & ! probe_length) %>% 
+  nest(data = c(community, par_prop, soil_moisture)) %>% 
+  mutate(par_ttest = map(data, ~tidy(TukeyHSD(aov(par_prop~community, .x)))))
 
-i <- 1
+soil_moisture_stats <- environmental_data %>% 
+  select(!plot & !par_ambient & !par_plot & ! probe_length) %>% 
+  filter(date != "2022-08-05") %>% 
+  nest(data = c(community, par_prop, soil_moisture)) %>% 
+  mutate(soil_moisture_ttest = map(data, ~tidy(TukeyHSD(aov(soil_moisture~community, .x)))))
 
-while(i <= nrow(date_key)){
-  temp <- environmental_data %>% 
-    filter(date == date_key$date[i])
-    
-  soil_moisture_anova <- aov(soil_moisture ~ factor(community), data = temp)
-  soil_moisture_tukey <- TukeyHSD(soil_moisture_anova, conf.level = .95)
-    
-  par_prop_anova <- aov(par_prop ~ factor(community), data = temp)
-  par_prop_tukey <- TukeyHSD(par_prop_anova, conf.level = .95)
-    
-  assign(paste("soil_moisture_anova", date_key$date[i], sep = "_"), soil_moisture_anova)
-  assign(paste("soil_moisture_tukey", date_key$date[i], sep = "_"), soil_moisture_tukey)
-   assign(paste("par_prop_anova", date_key$date[i], sep = "_"), par_prop_anova)
-  assign(paste("par_prop_tukey", date_key$date[i], sep = "_"), par_prop_tukey)
+par_data_mean <- environmental_data %>% 
+  select(!plot & !par_ambient & !par_plot & ! probe_length & !soil_moisture) %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(par_prop, na.rm = TRUE)[1],
+            lower = ci(par_prop, na.rm = TRUE)[2],
+            upper = ci(par_prop, na.rm = TRUE)[3])
+moisture_data_mean <- environmental_data %>% 
+  filter(date != "2022-08-05") %>% 
+  select(!plot & !par_ambient & !par_plot & ! probe_length & !par_prop) %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(soil_moisture, na.rm = TRUE)[1],
+            lower = ci(soil_moisture, na.rm = TRUE)[2],
+            upper = ci(soil_moisture, na.rm = TRUE)[3])
   
-  i = i + 1
-}
-  
-rm(soil_moisture_anova)
-rm(soil_moisture_tukey)
-rm(par_prop_anova)
-rm(par_prop_tukey)
-rm(temp)
-rm(i)
 ```
 
 Make some ggplots of %ambient par and soil moisture to visualize data
@@ -152,12 +181,13 @@ ggplot(data = environmental_data) +
         axis.text = element_text(size = 7))
 
 #Jitter plot for soil moisture
-ggplot(data = environmental_data) +
-  geom_jitter(mapping = aes(x = community, y = soil_moisture), width = .2, alpha = .5, color = "blue") +
+ggplot() +
+  geom_jitter(data = environmental_data %>% filter(date != "2022-08-05"),mapping = aes(x = community, y = soil_moisture), width = .2, alpha = .25, color = "blue") +
+  geom_point(data = moisture_data_mean, aes(x = community, y = mean), size = 2, color = "blue") +
+  geom_errorbar(data = moisture_data_mean, aes(x = community, ymin = lower, ymax = upper), color = "blue", width = 0.5)+
   facet_wrap(~date) +
   theme_classic() +
-  labs(caption = "Figure 2: Soil moisture across community types.",
-       x = "Community Type",
+  labs(x = "Community Type",
        y = "Soil Moisture") +
   theme(plot.caption = element_text(face = "bold", size = 11, hjust = 0),
         legend.position = "top",
@@ -165,8 +195,10 @@ ggplot(data = environmental_data) +
         axis.text = element_text(size = 7))
 
 #Jitter plot for par_prop
-ggplot(data = environmental_data) +
-  geom_jitter(mapping = aes(x = community, y = par_prop), width = .2, alpha = .5, color = "orange") +
+ggplot() +
+  geom_jitter(data = environmental_data, mapping = aes(x = community, y = par_prop), width = .2, alpha = .25, color = "orange") +
+  geom_point(data = par_data_mean, aes(x= community, y = mean), size = 2, color = "orange")+
+  geom_errorbar(data = par_data_mean, aes(x = community, ymin = lower, ymax = upper), color = "orange", width = 0.5)+
   facet_wrap(~date) +
   theme_classic() +
   labs(caption = "Figure 3: Proportion of ambient PAR blocked across community types.",
@@ -175,7 +207,8 @@ ggplot(data = environmental_data) +
   theme(plot.caption = element_text(face = "bold", size = 11, hjust = 0),
         legend.position = "top",
         axis.title = element_text(size = 10),
-        axis.text = element_text(size = 7))
+        axis.text = element_text(size = 7))+
+  ylim(-5,100)
 ```
 
 ## Graphs soil moisture and PAR with date as the x-axis and colored by community. Graphing mean and 95% confidence intervals. 
@@ -187,9 +220,41 @@ ggplot(data = environmental_data) +
 ## lm(perecent_survival~par) for each species
 
 ## ggplot survival and each environmental measurement + geom_smooth(type = "lm")
-
+ 
 ## repeat all of the above but with height. 
 
+```{r}
+environmental_plot <- environmental_data %>% 
+  group_by(plot, date) %>% 
+  summarize(mean_soil_moisture = mean(soil_moisture, na.rm = TRUE),
+            mean_par = mean(par_prop, na.rm = TRUE)) %>% 
+  mutate(month = month(date, label = TRUE))
+
+survival_environmental <- survival_data %>% 
+  group_by(plot, date) %>% 
+  summarise(survival = (sum(number_alive, na.rm = TRUE)/80)*100) %>% 
+  ungroup() %>% 
+  mutate(month = month(date, label = TRUE)) %>% 
+  left_join(environmental_plot, by = c("plot", "month"))
+
+ggplot(survival_environmental, aes(x = mean_soil_moisture, y = survival))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~month)+
+  theme_classic()
+ggplot(survival_environmental, aes(x = mean_par, y = survival))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~month)+
+  theme_classic()
+
+summary(lm(survival~mean_soil_moisture, data = survival_environmental %>% filter(month == "Apr")))
+summary(lm(survival~mean_soil_moisture, data = survival_environmental %>% filter(month == "Jun")))
+
+summary(lm(survival~mean_par, data = survival_environmental %>% filter(month == "Apr")))
+summary(lm(survival~mean_par, data = survival_environmental %>% filter(month == "Jun")))
+summary(lm(survival~mean_par, data = survival_environmental %>% filter(month == "Aug")))
+```
 
 
 
