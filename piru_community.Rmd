@@ -12,6 +12,10 @@ library(tidyverse)
 library(lubridate)
 library(broom)
 library(gmodels)
+library(DescTools)
+library(gmodels)
+library(readxl)
+library(janitor)
 ```
 
 
@@ -213,14 +217,57 @@ ggplot() +
 
 ## Graphs soil moisture and PAR with date as the x-axis and colored by community. Graphing mean and 95% confidence intervals. 
 
+```{r}
+soil_moisture_mean <- environmental_data %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(soil_moisture)[1],
+            lowCI = ci(soil_moisture)[2],
+            highCI = ci(soil_moisture)[3]) 
+
+ggplot(soil_moisture_mean, aes(date, mean, color = community))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lowCI, ymax=highCI)) +
+  labs(x = "date",
+       y = "soil moisture (%)")
+
+
+
+par_plot_mean <- environmental_data %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(par_plot)[1],
+            lowCI = ci(par_plot)[2],
+            highCI = ci(par_plot)[3]) 
+
+ggplot(par_plot_mean, aes(date, mean, color = community))+
+  geom_point()+
+  geom_errorbar(aes(ymin=lowCI, ymax=highCI)) +
+  labs(x = "date",
+       y = "par")
+```
+
+
 ## lm(percent_survival~soil_moisture + par + species)
+
+```{r}
+survival_environmental_data <- survival_data %>% 
+  inner_join(environmental_data, survival_data, by = c("plot", "date"))   
+
+summary(lm(percent_alive ~ soil_moisture + par_prop + species, survival_environmental_data))
+```
 
 ## lm(percent_survival~soil_moisture) for each species
 
+```{r}
+summary(lm(percent_alive ~ soil_moisture * species, data = survival_environmental_data))
+```
+
 ## lm(perecent_survival~par) for each species
 
+```{r}
+summary(lm(percent_alive ~ par_prop * species, data = survival_environmental_data))
+```
+
 ## ggplot survival and each environmental measurement + geom_smooth(type = "lm")
- 
 ## repeat all of the above but with height. 
 
 ```{r}
@@ -256,7 +303,78 @@ summary(lm(survival~mean_par, data = survival_environmental %>% filter(month == 
 summary(lm(survival~mean_par, data = survival_environmental %>% filter(month == "Aug")))
 ```
 
+```{r}
+ggplot(survival_environmental_data, aes(x = percent_alive, y = par_plot, group = community.y, color = community.y)) +
+   geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "percent alive (%)",
+       y = "par plot")
 
+ggplot(survival_environmental_data, aes(x = percent_alive, y = par_ambient, group = community.y, color = community.y)) +
+   geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "percent alive (%)",
+       y = "par ambient")
+
+ggplot(survival_environmental_data, aes(x = percent_alive, y = soil_moisture, group = community.y, color = community.y)) +
+   geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "percent alive (%)",
+       y = "soil moisture")
+
+ggplot(survival_environmental_data, aes(x = percent_alive, y = par_prop, group = community.y, color = community.y)) +
+   geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "percent alive (%)",
+       y = "par prop")
+```
+
+## repeat all of the above but with height. 
+
+```{r}
+height_data <- read_xlsx(here("data", "piru_data_6.24.xlsx")) %>% 
+  clean_names %>% 
+  mutate(plot = plot_number,
+         height = height_cm) %>% 
+  select(plot, height, species, id, date, notes) %>% 
+  fill(plot, .direction = "down")
+
+environmental_summary <- environmental_data %>% 
+  filter(date == "2022-06-09") %>% 
+  group_by(plot) %>% 
+  summarise(soil_moisture = mean(soil_moisture), 
+            par_prop = mean(par_prop))
+
+env_height_data <- height_data %>% 
+  right_join(environmental_summary, by = c("plot"))
+```
+
+#summaries
+```{r}
+summary(lm(height ~ soil_moisture + par_prop + species, env_height_data))
+```
+
+```{r}
+summary(lm(height ~ soil_moisture * species, data = env_height_data))
+```
+
+```{r}
+summary(lm(height ~ par_prop * species, data = env_height_data))
+```
+
+```{r}
+ggplot(env_height_data, aes(x = height, y = par_prop, group = species, color = species)) +
+   geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "height",
+       y = "par prop")
+
+ggplot(env_height_data, aes(x = height, y = soil_moisture, group = species, color = species)) +
+   geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "height",
+       y = "soil moisture")
+```
 
 
 
