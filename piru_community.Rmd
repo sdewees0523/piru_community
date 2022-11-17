@@ -32,11 +32,11 @@ environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>%
 
 survival_data <- read.csv(here("data", "survival.csv")) %>% 
   distinct() %>% 
-  select(1:6) %>% 
+  select(1:6)%>% 
   mutate(species = case_when(species == "ADFA" ~ "adfa", 
                              species == "ARCA" ~ "arca",
-                             species %in% c("E0CA", "E0FA") ~ "enca",
-                             species == "ERFA" ~ "erfa",
+                             species %in% c("E0CA", "E0FA", "ENCA") ~ "enca",
+                             species %in% c("ERFA", "ERCA") ~ "erfa",
                              species == "HEAR" ~ "hear",
                              species %in% c("MALA", "AMALA", "MALA?", "MELA") ~ "mala",
                              species %in% c("RHOU", "RHOV", "RHOB") ~ "rhov",
@@ -381,6 +381,46 @@ ggplot(env_height_data, aes(x = height, y = soil_moisture, group = species, colo
 
 
 
+```{r}
+plot_location_data <- read.csv(here("data", "survival.csv")) %>% 
+  filter(date == "9/8/2022") %>% 
+  select(1:6)%>% 
+  mutate(species = case_when(species == "ADFA" ~ "adfa", 
+                             species == "ARCA" ~ "arca",
+                             species %in% c("E0CA", "E0FA", "ENCA") ~ "enca",
+                             species %in% c("ERFA", "ERCA") ~ "erfa",
+                             species == "HEAR" ~ "hear",
+                             species %in% c("MALA", "AMALA", "MALA?", "MELA") ~ "mala",
+                             species %in% c("RHOU", "RHOV", "RHOB") ~ "rhov",
+                             species == "SAAP" ~ "saap",
+                             species %in% c("SALE", "SALEU")~ "sale",
+                             species %in% c("SAME", "SAAME") ~ "same",
+                             species %in% c("CECU", "GECU") ~ "cecu",
+                             species %in% c("CEOL", "EOL", " CEOL") ~ "ceol",
+                             species %in% c("RHIL", "RAIL") ~ "rhil",
+                             TRUE ~ species),
+         alive = replace_na(alive, 0)) %>% 
+  filter(species != "") %>% 
+  rename(location = X0otes) %>% 
+  group_by(plot, location) %>% 
+  mutate(number_alive = sum(alive, na.rm = TRUE),
+         location = case_when(location == "RM"~ "MR",
+                              TRUE ~ location)) %>% 
+  ungroup() %>% 
+  select(!id & !alive & !date & !species) %>% 
+  distinct() %>% 
+  filter(location != "")
+  group_by(location) %>% 
+  summarise(mean = ci(number_alive)[1],
+            lower = ci(number_alive)[2],
+            upper = ci(number_alive)[3])
+
+TukeyHSD(aov(number_alive~location, data = plot_location_data))  
+  
+ggplot(plot_location_data, aes(x = location, y = mean))+
+  geom_point()+
+  geom_errorbar(aes(ymin = lower, ymax = upper))
+```
 
 
 
