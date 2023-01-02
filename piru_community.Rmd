@@ -32,7 +32,7 @@ environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>%
 
 survival_data <- read.csv(here("data", "survival.csv")) %>% 
   distinct() %>% 
-  select(1:6)%>% 
+  select(1:5) %>% 
   mutate(species = case_when(species == "ADFA" ~ "adfa", 
                              species == "ARCA" ~ "arca",
                              species %in% c("E0CA", "E0FA", "ENCA") ~ "enca",
@@ -47,11 +47,12 @@ survival_data <- read.csv(here("data", "survival.csv")) %>%
                              species %in% c("CEOL", "EOL", " CEOL") ~ "ceol",
                              species %in% c("RHIL", "RAIL") ~ "rhil",
                              TRUE ~ species),
-         alive = replace_na(alive, 0)) %>%
+         alive = as.numeric(alive),
+         alive = replace_na(alive, 0)) %>% 
   group_by(plot, date, species) %>% 
   mutate(number_alive = sum(alive, na.rm = TRUE)) %>% 
   ungroup() %>% 
-  select(!id & !alive & !X0otes) %>% 
+  select(!id & !alive) %>% 
   distinct() %>% 
   filter(species %in% c("sale", "saap", "arca", "erfa", "same", "enca", "adfa", "rhov", "mala", "ceol", "cecu", "rhil", "hear")) %>% 
   right_join(community_types, by = "plot") %>% 
@@ -89,7 +90,12 @@ survival_summary <- survival_data %>%
   group_by(community, month, species) %>% 
   summarise(mean_survival = mean(percent_alive, na.rm = TRUE),
             ci_lower = ci(percent_alive, na.rm =TRUE)[2],
-            ci_upper = ci(percent_alive, na.rm = TRUE)[3])
+            ci_upper = ci(percent_alive, na.rm = TRUE)[3]) %>% 
+  ungroup() %>% 
+  mutate(ci_lower = case_when(ci_lower < 0 ~ 0,
+                              TRUE ~ ci_lower),
+         ci_upper = case_when(ci_upper > 100 ~ 100,
+                              TRUE ~ ci_upper))
   
 
 
@@ -97,6 +103,34 @@ ggplot(survival_summary, aes(x = month, y = mean_survival, col= as.factor(commun
   geom_point()+
   geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.3 )+
   facet_wrap(~species) +
+  theme_classic() +
+  theme(text = element_text(size = 10))+
+  labs(y = "Percent survival",
+       color = "community type")+
+  ylim(0,100)
+
+survival_community <- survival_data %>% 
+  mutate(type = case_when(species %in% c("adfa", "hear", "rhov", "ceol", "cecu", "rhil", "mala") ~ "chaparral",
+                          species %in% c("sale", "saap", "arca", "erfa", "same", "enca") ~ "sage scrub")) %>% 
+  filter(type == "chaparral") %>% 
+  group_by(community, plot, month) %>%
+    summarise(alive_sum = sum(number_alive),
+              planted_sum = sum(number_planted)) %>% 
+  ungroup() %>% 
+  mutate(percent_alive = (alive_sum/planted_sum)*100) %>% 
+  group_by(community, month) %>% 
+  summarise(mean_survival = mean(percent_alive, na.rm = TRUE),
+            ci_lower = ci(percent_alive, na.rm =TRUE)[2],
+            ci_upper = ci(percent_alive, na.rm = TRUE)[3]) %>% 
+  ungroup() %>% 
+  mutate(ci_lower = case_when(ci_lower < 0 ~ 0,
+                              TRUE ~ ci_lower),
+         ci_upper = case_when(ci_upper > 100 ~ 100,
+                              TRUE ~ ci_upper))
+  
+ggplot(survival_community, aes(x = month, y = mean_survival, col= as.factor(community)), size = 5) +
+  geom_point()+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.3 )+
   theme_classic() +
   theme(text = element_text(size = 10))+
   labs(y = "Percent survival",
