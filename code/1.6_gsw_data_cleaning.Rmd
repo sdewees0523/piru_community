@@ -1,0 +1,24 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+gsw <- read.csv(here("data", "raw_data", "gsw_may_23.csv")) %>% 
+  rename(plot = Plot,
+         species = Species,
+         id = X.,
+         date = Date) %>% 
+  mutate(date = mdy(date))
+
+```
+
