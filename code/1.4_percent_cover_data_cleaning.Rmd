@@ -1,0 +1,38 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+march_cover <- read.csv(here("data", "raw_data", "percent_cover_march_23.csv")) %>% 
+  mutate(group = case_when(Cover.type %in% c("RHOV", "HEAR", "CEOL", "MALA", "ADFA", "RHIL", "Chaparral", "CECU") ~ "chaparral",
+                           Cover.type %in% c("Lupine", "Native Herb", "Blue Dicks", "Morning Glory", "CA Poppy", "Eucrypta") ~ "native herb",
+                           Cover.type %in% c("ARCA", "SAAP", "SALE", "SAME", "ENCA", "ERFA", "Sage") ~ "sage",
+                           Cover.type %in% c("Bare ground", "Bare Ground") ~ "bare ground",
+                           Cover.type == "Non-native" ~ "non native herb"),
+         date = mdy(Date)) %>% 
+  rename(plot = Plot,
+         species = Cover.type, 
+         percent_cover = Percent.Cover) %>% 
+  select(plot, group, species, percent_cover, date)
+
+may_cover <- read.csv(here("data", "raw_data", "may_percent_cover.csv")) %>% 
+  mutate(date = mdy(date),
+         percent_cover = as.numeric(percent.cover)) %>%
+  select(plot, group, species, percent_cover, date) %>% 
+  drop_na(percent_cover)
+  
+percent_cover <- rbind(march_cover, may_cover)
+
+write.csv(percent_cover, here("data", "clean_data", "percent_cover_clean.csv"))
+```
+
