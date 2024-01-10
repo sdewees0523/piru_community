@@ -1,0 +1,219 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-09-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r} 
+community_types <- read.csv(here("data", "community_types.csv"))
+
+par_may_2023 <- read.csv(here("data", "par_may_2023.csv")) %>% 
+  separate(Plot, into = c("plot", "rep"), sep = "-") %>% 
+  mutate(par_plot = PAR.Plot/PAR.Amb) %>% 
+  mutate(plot = as.numeric(plot),
+         date = mdy(Date)) %>% 
+  group_by(plot, date) %>% 
+  reframe(par_plot = mean(par_plot)) %>% 
+  mutate(date = month(date))
+
+par_sept_2023 <- read.csv(here("data", "sept_par_soil.csv")) %>% 
+  dplyr::select("Plot", "PAR.ambient", "PAR.plot", "Date") %>% 
+  mutate(par_plot = PAR.plot/PAR.ambient,
+         date = mdy(Date)) %>% 
+  dplyr::select(Plot, par_plot, date) %>% 
+  group_by(Plot, date) %>% 
+  reframe(par_plot = mean(par_plot)) %>% 
+  mutate(date = month(date)) %>% 
+  drop_na()
+
+may_cover <- read.csv(here("data", "may_percent_cover.csv")) %>%
+  mutate(percent.cover = as.numeric(percent.cover)) %>% 
+  group_by(plot, group) %>% 
+  reframe(cover = sum(percent.cover, na.rm = T)) %>% 
+  filter(group %in% c("chaparral", "sage")) %>% 
+  group_by(plot) %>% 
+  reframe(native_cover = sum(cover, na.rm = T)) %>% 
+  filter(plot != "")
+
+temperature <- read.csv(here("data", "temperature.csv")) %>% 
+  dplyr::select(!X) %>% 
+  left_join(community_types, by = "plot") %>% 
+  left_join(may_cover, by = "plot") %>% 
+  left_join(par_may_2023 %>% dplyr::select(!date), by = "plot")
+
+vpd <- read.csv(here("data", "vpd.csv")) %>% 
+  dplyr::select(!X) %>% 
+  left_join(community_types, by = "plot") %>% 
+  left_join(may_cover, by = "plot") %>% 
+  left_join(par_may_2023 %>% dplyr::select(!date), by = "plot")
+```
+
+```{r}
+temp_daily_max <- temperature %>% 
+  group_by(plot, rep, date) %>% 
+  filter(temperature == max(temperature)) %>% 
+  ungroup() %>% 
+  mutate(month = month(date))
+
+temp_monthly_mean_community <- temp_daily_max %>% 
+  group_by(month, community) %>% 
+  reframe(temperature = mean(temperature))
+
+temp_monthly_mean_plot <- temp_daily_max %>% 
+  group_by(plot, month) %>% 
+  reframe(temperature = mean(temperature),
+          native_cover = mean(native_cover),
+          par = mean(par_plot))
+
+TukeyHSD(aov(temperature~as.factor(community), data = temp_daily_max %>% filter(month== 9)))
+
+ggplot(temp_daily_max, aes(x = month, y = temperature, col = as.factor(community)))+
+  #geom_jitter(alpha = 0.25)+
+  geom_point(data = temp_monthly_mean_community, aes(x= month, y = temperature, col = as.factor(community)), size = 3)+
+  theme_classic()
+
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 3)))
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 4)))
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 5)))
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 6)))
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 7)))
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 8)))
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 9)))
+
+ggplot(temp_monthly_mean_plot, aes(x = native_cover, y = temperature))+
+  geom_point()+
+  facet_wrap(~month, scales = "free")+
+  theme_classic()
+
+ggplot(temp_monthly_mean_plot, aes(x = par, y = temperature))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 9)))
+summary(lm(temperature~par, data = temp_monthly_mean_plot %>% filter(month == 9)))
+summary(lm(temperature~native_cover+par, data = temp_monthly_mean_plot %>% filter(month == 9)))
+
+ggplot(hour_monthly_median, aes(x = native_cover, y = hour)) +
+  geom_point() + 
+  facet_wrap(~month) +
+  theme_classic()
+```
+
+```{r}
+vpd_daily_max <- vpd %>% 
+  group_by(plot, rep, date) %>% 
+  reframe(vpd = max(vpd),
+          community = mean(community),
+          native_cover = mean(native_cover),
+          par = mean(par_plot)) %>% 
+  mutate(month = month(date))
+
+vpd_monthly_mean_community <- vpd_daily_max %>% 
+  group_by(month, community) %>% 
+  reframe(vpd = mean(vpd))
+
+vpd_monthly_mean_plot <- vpd_daily_max %>% 
+  group_by(plot, month) %>% 
+  reframe(vpd = mean(vpd),
+          native_cover = mean(native_cover),
+          par = mean(par))
+TukeyHSD(aov(temperature~as.factor(community), data = temp_daily_max %>% filter(month== 9)))
+
+ggplot(vpd_daily_max, aes(x = month, y = vpd, col = as.factor(community)))+
+  #geom_jitter(alpha = 0.25)+
+  geom_point(data = vpd_monthly_mean_community, aes(x= month, y = vpd, col = as.factor(community)), size = 3)+
+  theme_classic()
+
+summary(lm(vpd~native_cover, data = vpd_monthly_mean_plot %>% filter(month == 3)))
+summary(lm(vpd~native_cover, data = vpd_monthly_mean_plot %>% filter(month == 4)))
+summary(lm(vpd~native_cover, data = vpd_monthly_mean_plot %>% filter(month == 5)))
+summary(lm(vpd~native_cover, data = vpd_monthly_mean_plot %>% filter(month == 6)))
+summary(lm(vpd~native_cover, data = vpd_monthly_mean_plot %>% filter(month == 7)))
+summary(lm(vpd~native_cover, data = vpd_monthly_mean_plot %>% filter(month == 8)))
+summary(lm(vpd~native_cover, data = vpd_monthly_mean_plot %>% filter(month == 9)))
+
+ggplot(vpd_monthly_mean_plot, aes(x = native_cover, y = vpd))+
+  geom_point()+
+  facet_wrap(~month, scales = "free")+
+  theme_classic()
+
+summary(lm(vpd~par, data = vpd_monthly_mean_plot %>% filter(month == 9)))
+
+ggplot(vpd_monthly_mean_plot, aes(x = par, y = vpd))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+
+summary(lm(vpd~native_cover * par, data = vpd_monthly_mean_plot %>%  filter(month == 9)))
+```
+
+```{r}
+sol_rad1 <- raster::raster(here("data", "heat_load_index.tif"))
+plots <- sf::st_read(here("data", "piru_plots", "plots_polygon.shp")) %>% 
+  rename(plot = Id) %>% 
+  mutate(sol_rad = raster::extract(sol_rad1, .)) %>% 
+  mutate(sol_rad = unlist(lapply(sol_rad, FUN = mean)))
+temperature_scale <- temp_daily_max %>% 
+  left_join(plots, by = "plot") %>% 
+  mutate(scaled_temperature = temperature/sol_rad)
+
+summary(lm(temperature~sol_rad, data = temperature_scale))
+
+ggplot(temperature_scale, aes(x = sol_rad, y = temperature))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+temp_scale_monthly_mean_community <- temperature_scale %>% 
+  group_by(month, community) %>% 
+  reframe(temperature = mean(scaled_temperature))
+
+temp_scale_monthly_mean_plot <- temperature_scale %>% 
+  group_by(plot, month) %>% 
+  reframe(temperature = mean(scaled_temperature),
+          native_cover = mean(native_cover),
+          par = mean(par))
+TukeyHSD(aov(scaled_temperature~as.factor(community), data = temperature_scale %>% filter(month== 3)))
+
+ggplot(temperature_scale, aes(x = month, y = scaled_temperature, col = as.factor(community)))+
+  #geom_jitter(alpha = 0.25)+
+  geom_point(data = temp_scale_monthly_mean_community, aes(x= month, y = temperature, col = as.factor(community)), size = 3)+
+  theme_classic()
+
+summary(lm(temperature~cover, data = temp_monthly_mean %>% filter(month == 9)))
+
+ggplot(temp_scale_monthly_mean_plot, aes(x = native_cover, y = temperature))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+
+ggplot(temp_scale_monthly_mean_plot, aes(x = par, y = temperature))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+
+summary(lm(temperature~native_cover, data = temp_monthly_mean_plot %>% filter(month == 9)))
+summary(lm(temperature~par, data = temp_monthly_mean_plot %>% filter(month == 9)))
+summary(lm(temperature~native_cover+par, data = temp_monthly_mean_plot %>% filter(month == 9)))
+```
+
+```{r}
+ggplot(temp_monthly_mean_plot %>% filter(month == 7), aes(x = native_cover, y = temperature))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+ggplot(vpd_monthly_mean_plot %>% filter(month == 8), aes(x = native_cover, y = vpd))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_classic()
+
+```
+

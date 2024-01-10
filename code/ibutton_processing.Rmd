@@ -1,0 +1,138 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+## Temperature
+
+```{r}
+files_1 <- list.files(here("data", "ibutton_data", "temperature"), pattern = ".csv")
+files_2 <- list.files(here("data", "ibutton_data", "temperature", "skip_18"), pattern = ".csv")
+files_3 <- list.files(here("data", "ibutton_data", "july", "temperature"), pattern = ".csv")
+files_4 <- list.files(here("data", "ibutton_data", "july", "temperature", "skip_18"), pattern = ".csv" )
+files_5 <- list.files(here("data", "ibutton_data", "september", "temp"), pattern = ".csv")
+files_6 <- list.files(here("data", "ibutton_data", "september", "temp", "skip_18"), pattern = ".csv" )
+ibutton_temp_1 <- read_csv(here("data", "ibutton_data", "temperature", files_1), skip = 14, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  separate(Value, into = c("unit", "temperature"), sep = ",") %>% 
+  mutate(plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/temperature/"),
+         plot = str_remove(plot, ".csv"),
+         temperature = as.numeric(temperature)) %>% 
+  separate(plot, into = c("plot", "rep"), "_")
+ibutton_temp_2 <- read_csv(here("data", "ibutton_data", "temperature", "skip_18", files_2), skip = 18, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  separate(Value, into = c("unit", "temperature"), sep = ",") %>% 
+  mutate(plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/temperature/skip_18/"),
+         plot = str_remove(plot, ".csv")) %>% 
+  separate(plot, into = c("plot", "rep"), "_") %>% 
+  mutate(temperature = as.numeric(temperature),
+         temperature = (temperature * (9/5)) + 32)
+ibutton_temp_3 <- read_csv(here("data", "ibutton_data", "july", "temperature", files_3), skip = 14, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  separate(Value, into = c("unit", "temperature"), sep = ",") %>% 
+  mutate(plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/july/temperature/"),
+         plot = str_remove(plot, ".csv")) %>% 
+  separate(plot, into = c("plot", "rep"), "_") %>% 
+  mutate(temperature = as.numeric(temperature),
+         temperature = (temperature * (9/5)) + 32)
+ibutton_temp_4 <- read_csv(here("data", "ibutton_data", "july", "temperature", "skip_18", files_4), skip = 18, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  separate(Value, into = c("unit", "temperature"), sep = ",") %>% 
+  mutate(plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/july/temperature/skip_18/"),
+         plot = str_remove(plot, ".csv")) %>% 
+  separate(plot, into = c("plot", "rep"), "_") %>% 
+  mutate(temperature = as.numeric(temperature),
+         temperature = (temperature * (9/5)) + 32)
+
+ibutton_temp_5 <- read_csv(here("data", "ibutton_data", "september", "temp", files_5), skip = 14, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  separate(Value, into = c("unit", "temperature"), sep = ",") %>% 
+  mutate(plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/september/temp/"),
+         plot = str_remove(plot, ".csv")) %>% 
+  separate(plot, into = c("plot", "rep"), "_") %>% 
+  mutate(temperature = as.numeric(temperature),
+         temperature = (temperature * (9/5)) + 32)
+ibutton_temp_6 <- read_csv(here("data", "ibutton_data", "september", "temp", "skip_18", files_6), skip = 18, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  separate(Value, into = c("unit", "temperature"), sep = ",") %>% 
+  mutate(plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/september/temp/skip_18/"),
+         plot = str_remove(plot, ".csv")) %>% 
+  separate(plot, into = c("plot", "rep"), "_") %>% 
+  mutate(temperature = as.numeric(temperature),
+         temperature = (temperature * (9/5)) + 32)
+
+ibutton_temp <- rbind(ibutton_temp_1, ibutton_temp_2, ibutton_temp_3, ibutton_temp_4, ibutton_temp_6) %>%
+  distinct() %>% 
+  mutate(time = hms(time),
+         time = hour(time),
+         date = mdy(date),
+         date_time = ymd_h(paste(date, time, sep = " ")))
+
+write.csv(ibutton_temp, file = here("data","clean_data", "temperature.csv"))
+```
+
+## Humidity
+
+```{r}
+hum_files_1 <- list.files(here("data", "ibutton_data", "july", "humidity"), pattern = ".csv")
+hum_files_2 <- list.files(here("data", "ibutton_data", "september", "humidity"), pattern = ".csv")
+
+ibutton_humidity_1 <- read_csv(here("data", "ibutton_data", "july", "humidity", hum_files_1), skip = 18, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  mutate(Value = str_remove(Value, "%RH,"),
+         Value = as.numeric(Value),
+         plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/july/humidity/"),
+         plot = str_remove(plot, ".csv")) %>% 
+  separate(plot, into = c("plot", "rep"), "_")
+
+ibutton_humidity_2 <- read_csv(here("data", "ibutton_data", "september", "humidity", hum_files_2), skip = 18, id = "plot") %>% 
+  rename(date = "Date/Time",
+         time = Unit) %>% 
+  mutate(Value = str_remove(Value, "%RH,"),
+         Value = as.numeric(Value),
+         plot = str_remove(plot, "C:/Users/tenni/Desktop/Piru_community/piru_community/data/ibutton_data/september/humidity/"),
+         plot = str_remove(plot, ".csv")) %>% 
+  separate(plot, into = c("plot", "rep"), "_")
+
+humidity <- rbind(ibutton_humidity_1, ibutton_humidity_2) %>% 
+  distinct() %>% 
+  rename(humidity = Value)%>% 
+  mutate(time = hms(time),
+         time = hour(time),
+         date = mdy(date),
+         date_time = ymd_h(paste(date, time, sep = " ")))
+
+write.csv(humidity, file = here("data", "clean_data", "humidity.csv"))
+```
+
+## VPD
+
+```{r}
+vpd <- inner_join(ibutton_temp, humidity, by = c("plot", "rep","date", "time", "date_time")) %>% 
+  distinct() %>% 
+  mutate(humidity = case_when(humidity > 100 ~ 100,
+                              TRUE ~ humidity)) %>% 
+  mutate(temperature = (temperature - 32) * (5/9),
+         vpsat = (610.7*10^((7.5*temperature)/(237.3 + temperature)))/1000,
+         vpair = vpsat *(humidity/100),
+         vpd = vpsat-vpair)
+
+write.csv(vpd, here("data","clean_data", "vpd.csv"))
+```
+

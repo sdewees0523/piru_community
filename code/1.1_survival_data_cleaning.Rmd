@@ -1,0 +1,92 @@
+---
+title: "data cleaning"
+author: "Shane Dewees"
+date: "2023-02-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(lubridate)
+```
+
+```{r}
+community_types <- read.csv(here("data","raw_data", "community_types.csv"))
+survival_data <- read.csv(here("data", "raw_data", "survival.csv")) %>% 
+  distinct() %>%  
+  select(1:5) %>% 
+  mutate(species = case_when(species == "ADFA" ~ "adfa", 
+                             species == "ARCA" ~ "arca",
+                             species %in% c("E0CA", "E0FA", "ENCA") ~ "enca",
+                             species %in% c("ERFA", "ERCA") ~ "erfa",
+                             species == "HEAR" ~ "hear",
+                             species %in% c("MALA", "AMALA", "MALA?", "MELA") ~ "mala",
+                             species %in% c("RHOU", "RHOV", "RHOB") ~ "rhov",
+                             species == "SAAP" ~ "saap",
+                             species %in% c("SALE", "SALEU")~ "sale",
+                             species %in% c("SAME", "SAAME") ~ "same",
+                             species %in% c("CECU", "GECU") ~ "cecu",
+                             species %in% c("CEOL", "EOL", " CEOL") ~ "ceol",
+                             species %in% c("RHIL", "RAIL") ~ "rhil",
+                             TRUE ~ species),
+         alive = as.numeric(alive),
+         alive = replace_na(alive, 0)) %>% 
+  group_by(plot, date, species) %>%  
+  mutate(number_alive = sum(alive, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  select(!id & !alive) %>% 
+  distinct() %>% 
+  filter(species %in% c("sale", "saap", "arca", "erfa", "same", "enca", "adfa", "rhov", "mala", "ceol", "cecu", "rhil", "hear")) %>% 
+  right_join(community_types, by = "plot") %>% 
+  mutate(number_planted = case_when(community %in% c(1,2) & species == "sale" ~ 10,
+                                    community %in% c(1,2) & species == "saap" ~ 10,
+                                    community %in% c(1,2) & species == "arca" ~ 10,
+                                    community %in% c(1,2) & species == "erfa" ~ 7,
+                                    community %in% c(1,2) & species == "same" ~ 7,
+                                    community %in% c(1,2) & species == "enca" ~ 10,
+                                    community == 1 & species == "ceol" ~ 7,
+                                    community == 1 & species == "cecu" ~ 5,
+                                    community == 1 & species == "hear" ~ 7,
+                                    community == 1 & species == "rhil" ~ 7,
+                                    community == 2 & species == "adfa" ~ 9,
+                                    community == 2 & species == "rhov" ~ 9,
+                                    community == 2 & species == "mala" ~ 8,
+                                    community == 3 & species == "ceol" ~ 13,
+                                    community == 3 & species == "cecu" ~ 5,
+                                    community == 3 & species == "hear" ~ 12,
+                                    community == 3 & species == "rhil" ~ 12,
+                                    community == 3 & species == "adfa" ~ 13,
+                                    community == 3 & species == "rhov" ~ 13,
+                                    community == 3 & species == "mala" ~ 12),
+         number_planted = case_when(as.numeric(number_alive) > as.numeric(number_planted) ~ as.numeric(number_alive),
+                                    as.numeric(number_alive) <= as.numeric(number_planted) ~ as.numeric(number_planted)),
+         percent_alive = number_alive/number_planted * 100,
+         date = mdy(date),
+         month = month(date, label = TRUE),
+         community = case_when(community == 1 ~ "sage_obligate_seeder/resprouter",
+                               community == 2 ~ "sage_facultative_resprouter",
+                               community == 3 ~ "chaparral_only")) %>% 
+  drop_na(number_planted) %>% 
+  group_by(plot, species) %>% 
+  mutate(number_alive = case_when(number_alive < lead(number_alive, n = 5, order_by = month) ~ lead(number_alive, n = 5, order_by = month),
+                                  number_alive < lead(number_alive, n = 4, order_by = month) ~ lead(number_alive, n = 4, order_by = month),
+                                  number_alive < lead(number_alive, n = 3, order_by = month) ~ lead(number_alive, n = 3, order_by = month),
+                                  number_alive < lead(number_alive, n = 2, order_by = month) ~ lead(number_alive, n = 2, order_by = month),
+                                  number_alive < lead(number_alive, n = 1, order_by = month) ~ lead(number_alive, n = 1, order_by = month),
+                                  TRUE ~ number_alive)) %>% 
+  ungroup() %>% 
+  mutate(percent_alive = number_alive/number_planted)
+
+ggplot(survival_data %>% filter(species == "cecu"), aes(x = date, y = percent_alive))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(~plot)
+
+
+write.csv(survival_data, here("data", "clean_data", "survival_data_clean.csv"))
+
+```
+
+

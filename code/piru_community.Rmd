@@ -1,0 +1,325 @@
+---
+title: "piru community plots"
+author: "Shane Dewees"
+date: "3/30/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+library(broom)
+library(gmodels)
+library(DescTools)
+library(gmodels)
+library(readxl)
+library(janitor)
+```
+
+
+Reading in data
+```{r}
+community_types <- read.csv(here("data", "community_types.csv"))
+environmental_data <- read.csv(here("data", "par_soil_moisture.csv")) %>% 
+  select(!community) %>% 
+  full_join(community_types, by = "plot") %>% 
+  mutate(date = mdy(date)) %>% 
+  mutate(community = as.character(community))
+
+#Coerced community to character so ggplot recognizes as discrete variable
+
+survival_data <- read.csv(here("data", "survival_data_clean.csv")) 
+survival_data$month <- factor(survival_data$month, levels = c("Apr",
+                                                                    "Jun",
+                                                                    "Aug",
+                                                                    "Sep",
+                                                                    "Oct",
+                                                                    "Nov"))
+
+survival_summary <- survival_data %>% 
+  mutate(date = case_when(date == "2022-04-20" ~ "2022-04-29",
+                          TRUE ~ date)) %>% 
+  group_by(community, date, species) %>% 
+  summarise(mean_survival = mean(percent_alive, na.rm = TRUE),
+            ci_lower = ci(percent_alive, na.rm =TRUE)[2],
+            ci_upper = ci(percent_alive, na.rm = TRUE)[3]) %>% 
+  ungroup() %>% 
+  mutate(ci_lower = case_when(ci_lower < 0 ~ 0,
+                              TRUE ~ ci_lower),
+         ci_upper = case_when(ci_upper > 1 ~ 1,
+                              TRUE ~ ci_upper),
+         date = ymd(date)) 
+survival_summary$species <- factor(survival_summary$species, levels = c("arca",
+                                                                        "enca",
+                                                                        "erfa",
+                                                                        "saap",
+                                                                        "sale",
+                                                                        "same",
+                                                                        "adfa",
+                                                                        "cecu",
+                                                                        "ceol",
+                                                                        "hear",
+                                                                        "mala",
+                                                                        "rhil",
+                                                                        "rhov"))
+survival_summary$month <- factor(survival_summary$month, levels = c("Apr",
+                                                                    "Jun",
+                                                                    "Aug",
+                                                                    "Sep",
+                                                                    "Oct",
+                                                                    "Nov"))
+  
+
+
+ggplot(survival_summary, aes(x = date, y = mean_survival, col= as.factor(community)), size = 5) +
+  geom_point(position = position_dodge(width = 20))+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.3, position = position_dodge(width = 20) )+
+  facet_wrap(~species) +
+  theme_classic() +
+  theme(text = element_text(size = 10))+
+  labs(y = "Percent survival",
+       color = "community type")+
+  ylim(0,1) +
+  scale_x_date(date_labels = "%B")
+
+survival_community <- survival_data %>% 
+  mutate(type = case_when(species %in% c("adfa", "hear", "rhov", "ceol", "cecu", "rhil", "mala") ~ "chaparral",
+                          species %in% c("sale", "saap", "arca", "erfa", "same", "enca") ~ "sage scrub"),
+         community = case_when(species %in% c("adfa", "rhov", "mala") & community == "chaparral_only" ~ "facultive_only",
+                               species %in% c("hear", "ceol", "cecu", "rhil") & community == "chaparral_only" ~ "obligate_only",
+                               TRUE ~ community),
+         date = case_when(date == "2022-04-20" ~ "2022-04-29",
+                          TRUE ~ date)) %>% 
+  filter(type == "chaparral" & species != "adfa") %>% 
+  group_by(community, plot, date) %>%
+    summarise(alive_sum = sum(number_alive),
+              planted_sum = sum(number_planted)) %>% 
+  ungroup() %>% 
+  mutate(percent_alive = (alive_sum/planted_sum))
+
+survival_community_sigs <- survival_community %>% 
+  select(!plot & !alive_sum & !planted_sum) %>% 
+  nest(data = c(community, percent_alive)) %>% 
+  mutate(survival_ttest = map(data, ~tidy(TukeyHSD(aov(percent_alive~community, .x)))))
+
+survival_community_stats <- survival_community %>%   
+  group_by(community, date) %>% 
+  summarise(mean_survival = mean(percent_alive, na.rm = TRUE),
+            ci_lower = ci(percent_alive, na.rm =TRUE)[2],
+            ci_upper = ci(percent_alive, na.rm = TRUE)[3]) %>% 
+  ungroup() %>% 
+  mutate(ci_lower = case_when(ci_lower < 0 ~ 0,
+                              TRUE ~ ci_lower),
+         ci_upper = case_when(ci_upper > 1 ~ 1,
+                              TRUE ~ ci_upper))
+  
+ggplot(survival_community_stats, aes(x = date, y = mean_survival, col= as.factor(community)), size = 5) +
+  geom_point(position = position_dodge(width = 0.75))+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.3, position = position_dodge(width = 0.75) )+
+  theme_classic() +
+  theme(text = element_text(size = 10))+
+  labs(y = "Percent survival",
+       color = "community type")
+
+survival_community_time <- survival_data %>% 
+  mutate(type = case_when(species %in% c("adfa", "hear", "rhov", "ceol", "cecu", "rhil", "mala") ~ "chaparral",
+                          species %in% c("sale", "saap", "arca", "erfa", "same", "enca") ~ "sage scrub"),
+         community = case_when(community != "chaparral_only" ~"chaparral_sage",
+                               TRUE~ community),
+         days_from_planted = case_when(month == "Apr" ~ 30,
+                                month == "May" ~ 60,
+                                month == "Jun" ~ 90,
+                                month == "Jul" ~ 120,
+                                month == "Aug" ~ 150,
+                                month == "Sep" ~ 180,
+                                month == "Oct" ~ 210,
+                                month == "Nov" ~ 240)) %>% 
+  filter(type == "chaparral") %>% 
+  group_by(plot, species, community , days_from_planted) %>%
+    summarise(alive_sum = sum(number_alive),
+              planted_sum = sum(number_planted)) %>% 
+  ungroup() %>% 
+  mutate(percent_alive = (alive_sum/planted_sum))
+
+ggplot(survival_community_time, aes(x= days_from_planted, y = percent_alive, col = community))+
+  geom_point(alpha = 0.5)+
+  geom_smooth(method = "glm",
+              method.args = list("binomial"))+
+  facet_wrap(~species)+
+  theme_classic()
+
+summary(glm(percent_alive~days_from_planted*community,family = binomial, data = survival_community_time %>% filter(species == "adfa")))
+summary(glm(percent_alive~days_from_planted*community,family = binomial, data = survival_community_time %>% filter(species == "cecu")))
+summary(glm(percent_alive~days_from_planted*community,family = binomial, data = survival_community_time %>% filter(species == "ceol")))
+summary(glm(percent_alive~days_from_planted*community,family = binomial, data = survival_community_time %>% filter(species == "hear")))
+summary(glm(percent_alive~days_from_planted*community,family = binomial, data = survival_community_time %>% filter(species == "mala")))
+summary(glm(percent_alive~days_from_planted*community,family = binomial, data = survival_community_time %>% filter(species == "rhil")))
+summary(glm(percent_alive~days_from_planted*community,family = binomial, data = survival_community_time %>% filter(species == "rhov")))
+```
+
+```{r}
+community_survival <- survival_data %>% 
+  mutate(functional_group = case_when(species %in% c("sale", "saap", "arca", "erfa", "same", "enca")~ "sage_scrub",
+                                      species %in% c("adfa", "rhov", "mala", "ceol", "cecu", "rhil", "hear")~ "chaparral"))
+
+community_survival_stats <- community_survival %>% 
+  group_by(community, month, functional_group) %>% 
+  summarise(mean_survival = mean(percent_alive, na.rm = TRUE),
+            ci_lower = ci(percent_alive, na.rm =TRUE)[2],
+            ci_upper = ci(percent_alive, na.rm = TRUE)[3])
+  
+ggplot(community_survival_stats, aes(x = as.factor(community), y = mean_survival, col= functional_group), alpha = 0.5) +
+  geom_point()+
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.3 )+
+  facet_wrap(~month) +
+  theme_classic() +
+  theme(text = element_text(size = 10),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  ylim(0,1)+
+  labs(x = "community type",
+       y = "Percent survival")
+
+
+community_survival_group <- community_survival %>% 
+  pivot_wider(names_from = functional_group, values_from = percent_alive)
+
+```
+
+Caluclate % of ambient par in plots
+```{r}
+environmental_data <- environmental_data %>% 
+  mutate(par_prop = 100 - (par_plot / par_ambient) * 100,
+         community = as.factor(community),
+         date = case_when(is.na(date) == TRUE ~ ymd("2022-07-15"),
+                          TRUE ~ date)) %>% 
+  group_by(plot, date) %>% 
+  summarize(community = community, 
+            par_prop = mean(par_prop, na.rm = TRUE),
+            soil_moisture = mean(soil_moisture, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  distinct()
+```
+
+
+Anova and Tukeys test to test for significance of soil moisture and %ambient par between communities
+```{r, warning=FALSE}
+par_data_stats <- environmental_data %>% 
+  select(!plot) %>% 
+  nest(data = c(community, par_prop, soil_moisture)) %>% 
+  mutate(par_ttest = map(data, ~tidy(TukeyHSD(aov(par_prop~as.factor(community), .x)))))
+
+soil_moisture_stats <- environmental_data %>% 
+  select(!plot) %>% 
+  filter(date != "2022-08-05") %>% 
+  nest(data = c(community, par_prop, soil_moisture)) %>% 
+  mutate(soil_moisture_ttest = map(data, ~tidy(TukeyHSD(aov(soil_moisture~community, .x)))))
+
+par_data_mean <- environmental_data %>% 
+  select(!plot) %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(par_prop, na.rm = TRUE)[1],
+            lower = ci(par_prop, na.rm = TRUE)[2],
+            upper = ci(par_prop, na.rm = TRUE)[3])
+moisture_data_mean <- environmental_data %>% 
+  filter(date != "2022-08-05") %>% 
+  select(!plot & !par_prop) %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(soil_moisture, na.rm = TRUE)[1],
+            lower = ci(soil_moisture, na.rm = TRUE)[2],
+            upper = ci(soil_moisture, na.rm = TRUE)[3])
+  
+```
+
+Make some ggplots of %ambient par and soil moisture to visualize data
+```{r}
+#Scatter plot of %ambient par vs soil moisture with color indicating community
+ggplot(data = environmental_data) +
+  geom_point(mapping = aes(x = par_prop, y = soil_moisture, color = community), alpha = .5) +
+  geom_smooth(mapping = aes(x = par_prop, y = soil_moisture, color = community, fill = community), method = "lm", formula = y ~ x, alpha = .05) +
+  facet_wrap(~date)+
+  theme_classic() +
+  labs(caption = "Figure 1: Percent of ambient par blocked by plants versus soil moisture for three community types",
+       x = "Percent of Ambient Par Blocked",
+       y = "Soil Moisture",
+       color = "Community Type:",
+       fill = "") +
+  guides(fill = FALSE) +
+  theme(plot.caption = element_text(face = "bold", size = 11, hjust = 0),
+        legend.position = "top",
+        axis.title = element_text(size = 10),
+        axis.text = element_text(size = 7))
+
+#Jitter plot for soil moisture
+ggplot() +
+  geom_jitter(data = environmental_data %>% filter(date != "2022-08-05"),mapping = aes(x = community, y = soil_moisture), width = .2, alpha = .25, color = "blue") +
+  geom_point(data = moisture_data_mean, aes(x = community, y = mean), size = 2, color = "blue") +
+  geom_errorbar(data = moisture_data_mean, aes(x = community, ymin = lower, ymax = upper), color = "blue", width = 0.5)+
+  facet_wrap(~date) +
+  theme_classic() +
+  labs(x = "Community Type",
+       y = "Soil Moisture") +
+  theme(plot.caption = element_text(face = "bold", size = 11, hjust = 0),
+        legend.position = "top",
+        axis.title = element_text(size = 10),
+        axis.text = element_text(size = 7))
+
+#Jitter plot for par_prop
+ggplot() +
+  geom_jitter(data = environmental_data, mapping = aes(x = community, y = par_prop), width = .2, alpha = .25, color = "orange") +
+  geom_point(data = par_data_mean, aes(x= community, y = mean), size = 2, color = "orange")+
+  geom_errorbar(data = par_data_mean, aes(x = community, ymin = lower, ymax = upper), color = "orange", width = 0.5)+
+  facet_wrap(~date) +
+  theme_classic() +
+  labs(caption = "Figure 3: Proportion of ambient PAR blocked across community types.",
+       x = "Community Type",
+       y = "Proportion of PAR Blocked") +
+  theme(plot.caption = element_text(face = "bold", size = 11, hjust = 0),
+        legend.position = "top",
+        axis.title = element_text(size = 10),
+        axis.text = element_text(size = 7))+
+  ylim(-5,100)
+```
+
+## Graphs soil moisture and PAR with date as the x-axis and colored by community. Graphing mean and 95% confidence intervals. 
+
+```{r}
+soil_moisture_mean <- environmental_data %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(soil_moisture)[1],
+            lowCI = ci(soil_moisture)[2],
+            highCI = ci(soil_moisture)[3]) %>% 
+  mutate(community = case_when(community == 1 ~ "Sage scrub and obligates coplanted",
+                               community == 2 ~ "Sage scrub and facultative coplanted",
+                               community == 3 ~ "chaparral species only"))
+
+soil_moisture_graph <- ggplot(soil_moisture_mean, aes(date, mean, color = community))+
+  geom_point(position = position_dodge(width = 10))+
+  geom_errorbar(aes(ymin=lowCI, ymax=highCI), 
+                position = position_dodge(width = 10)) +
+  theme_classic()+
+  labs(x = "date",
+       y = "soil moisture (%)")+
+  theme(legend.position = "none")
+  
+
+
+
+par_plot_mean <- environmental_data %>% 
+  group_by(community, date) %>% 
+  summarise(mean = ci(par_prop)[1],
+            lowCI = ci(par_prop)[2],
+            highCI = ci(par_prop)[3]) %>% 
+  mutate(community = case_when(community == 1 ~ "Sage scrub and obligates coplanted",
+                               community == 2 ~ "Sage scrub and facultative coplanted",
+                               community == 3 ~ "chaparral species only"))
+
+par_plot <- ggplot(par_plot_mean, aes(date, mean, color = community))+
+  geom_point(position = position_dodge(width = 10))+
+  geom_errorbar(aes(ymin=lowCI, ymax=highCI),
+                position = position_dodge(width = 10)) +
+  theme_classic()+
+  labs(x = "date",
+       y = "Percent Ambient Photosynthetic \n Active Radiation Blocked")
+```
