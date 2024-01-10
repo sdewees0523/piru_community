@@ -1,0 +1,30 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+key <- read.csv(here("data", "raw_data", "nutrient_key_april_23.csv")) %>% 
+  select(Sample.ID, Factor.1, Factor.2) %>% 
+  rename(plot = Factor.1,
+         location = Factor.2)
+
+nutrients <- read.csv(here("data", "raw_data", "nutrients_april_23.csv"), skip = 5) %>% 
+  select(!WAL.. & !X..Anion & !X..Cation & !Notes & !X & !X.1 & !X.2) %>% 
+  filter(row_number() != 1) %>% 
+  mutate(burial_date = ymd(Burial.Date),
+         retrieval_date = ymd(Retrieval.Date)) %>% 
+  select(!Burial.Date & !Retrieval.Date) %>% 
+  left_join(key, by = "Sample.ID") %>% 
+  select(!Sample.ID)
+
+write.csv(nutrients, here("data", "clean_data", "nutrients_clean.csv"))
+```
