@@ -90,3 +90,41 @@ write.csv(survival_data, here("data", "clean_data", "survival_data_clean.csv"))
 ```
 
 
+```{r}
+kaplan_survival_data <-  read.csv(here("data", "raw_data", "kaplan_meyer_survival.csv")) %>% 
+  mutate(start_date = mdy(start_date),
+         end_date = mdy(end_date),
+         end_date = case_when(end_date == mdy("05-17-2022") ~ mdy("05-17-2023"),
+                              T ~ end_date),
+         start_time = case_when(plot == 2403 ~ as.numeric(start_date - mdy("1/14/2022")),
+                                plot == 2460 ~ as.numeric(start_date - mdy("1/20/2022")),
+                                plot %in% c(2402, 2404, 2461) ~ as.numeric(start_date - mdy("1/21/2022")),
+                                plot %in% c(2458, 2462, 2401) ~ as.numeric(start_date - mdy("1/22/2022")),
+                                plot %in% c(2459, 2405) ~ as.numeric(start_date - mdy("1/26/2022")), 
+                                plot %in% c(11, 12) ~ as.numeric(start_date - mdy("1/27/2022")),
+                                plot %in% c(13,14) ~ as.numeric(start_date - mdy("1/28/2022")),
+                                plot == 15 ~ as.numeric(start_date - mdy("2/2/2022"))),
+         end_time = case_when(plot == 2403 ~ as.numeric(end_date - mdy("1/14/2022")),
+                                plot == 2460 ~ as.numeric(end_date - mdy("1/20/2022")),
+                                plot %in% c(2402, 2404, 2461) ~ as.numeric(end_date - mdy("1/21/2022")),
+                                plot %in% c(2458, 2462, 2401) ~ as.numeric(end_date - mdy("1/22/2022")),
+                                plot %in% c(2459, 2405) ~ as.numeric(end_date - mdy("1/26/2022")), 
+                                plot %in% c(11, 12) ~ as.numeric(end_date - mdy("1/27/2022")),
+                                plot %in% c(13,14) ~ as.numeric(end_date - mdy("1/28/2022")),
+                                plot == 15 ~ as.numeric(end_date - mdy("2/2/2022")))) %>% 
+  left_join(community_types, by = "plot") %>% 
+  mutate(dead = case_when(dead == 2 ~ 1,
+                          T ~ dead)) %>% 
+  group_by(plot, species, id) %>% 
+  filter(dead == 0 | dead == 1 & lag(dead, order_by = start_date, default = 0) != 1) %>% 
+  filter(!(start_time == 0 & dead == 1)) %>% 
+  ungroup() %>% 
+  group_by(plot, id) %>% 
+  mutate(unique_id = cur_group_id()) %>% 
+  ungroup() %>% 
+  mutate(community_type = case_when(species %in% c("sale", "saap", "same", "enca", "arca", "erfa")~ "sage",
+                                    species %in% c("rhov", "adfa", "mala", "cecu", "ceol", "rhil", "hear") ~ "chap"))
+
+write.csv(kaplan_survival_data, here("data", "clean_data", "kaplan_survival_data.csv"))
+```
+
