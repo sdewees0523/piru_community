@@ -1,0 +1,47 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+height_march_23 <- read.csv(here("data", "raw_data", "height_march_23.csv")) %>% 
+  mutate(date = mdy(Date)) %>% 
+  rename(plot = Plot,
+         height_cm = Height,
+         id = ID,
+         species = Species) %>% 
+  select(plot, id, species, height_cm, date)
+
+height_may_23 <- read.csv(here("data", "raw_data", "height_may_23.csv")) %>% 
+  mutate(date = mdy(Date)) %>% 
+  rename(plot = Plot,
+         species = Species,
+         id = X.,
+         height_cm = Height..cm.) %>% 
+  select(plot, id, species, height_cm, date)
+
+height_sep_23 <- read.csv(here("data", "raw_data", "height_sep_23.csv")) %>% 
+  mutate(date = mdy(Date)) %>% 
+  rename(plot = Plot,
+         id = ID,
+         species = Species, 
+         height_cm = Height..cm.) %>% 
+  select(plot, id, species, height_cm, date)
+
+height <- rbind(height_march_23, height_may_23, height_sep_23) %>% 
+  mutate(plot = as.numeric(plot),
+         id = as.numeric(id),
+         height_cm = as.numeric(height_cm)) %>% 
+  drop_na(height_cm)
+
+write.csv(height, here("data", "clean_data", "height_clean.csv"))
+```
+
