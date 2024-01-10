@@ -20,5 +20,6 @@ gsw <- read.csv(here("data", "raw_data", "gsw_may_23.csv")) %>%
          date = Date) %>% 
   mutate(date = mdy(date))
 
+write.csv(gsw, here("data", "clean_data", "gsw_clean.csv"))
 ```
 

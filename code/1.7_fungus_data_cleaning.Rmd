@@ -1,0 +1,28 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+fungus <- read.csv(here("data", "raw_data", "Rhus Ovata Mycorrhizae Data - raw data.csv")) %>% 
+  select(plot, id, Site.., X..of.Vesicles, X..of.Arbuscules, X..of.Hyphae) %>%
+  mutate(X..of.Vesicles = case_when(X..of.Vesicles == 2 ~ 1,
+                                    TRUE ~ X..of.Vesicles)) %>% 
+  group_by(plot, id) %>% 
+  reframe(vesicle_colonization = sum(X..of.Vesicles)/15,
+          arbuscule_colonization = sum(X..of.Arbuscules)/15,
+          hyphae_colonization = sum(X..of.Hyphae)/15) %>% 
+  filter(plot != "") %>% 
+  mutate(date = mdy("4-12/-2023"))
+
+write.csv(fungus, here("data", "clean_data", "fungus_clean.csv"))
+```
+
