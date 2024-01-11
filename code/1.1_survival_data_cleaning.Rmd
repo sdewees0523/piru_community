@@ -125,6 +125,8 @@ kaplan_survival_data <-  read.csv(here("data", "raw_data", "kaplan_meyer_surviva
   mutate(community_type = case_when(species %in% c("sale", "saap", "same", "enca", "arca", "erfa")~ "sage",
                                     species %in% c("rhov", "adfa", "mala", "cecu", "ceol", "rhil", "hear") ~ "chap"))
 
+
+
 write.csv(kaplan_survival_data, here("data", "clean_data", "kaplan_survival_data.csv"))
 ```
 
