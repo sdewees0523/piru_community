@@ -116,7 +116,7 @@ kaplan_survival_data <-  read.csv(here("data", "raw_data", "kaplan_meyer_surviva
   mutate(dead = case_when(dead == 2 ~ 1,
                           T ~ dead)) %>% 
   group_by(plot, species, id) %>% 
-  filter(dead == 0 | dead == 1 & lag(dead, order_by = start_date, default = 0) != 1) %>% 
+  filter(!(dead == 1 & lag(dead, order_by = start_date, default = 0) == 1)) %>% 
   filter(!(start_time == 0 & dead == 1)) %>% 
   ungroup() %>% 
   group_by(plot, id) %>% 
