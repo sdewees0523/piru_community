@@ -1,0 +1,117 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+library(lme4)
+```
+
+```{r}
+community_type <- read.csv(here("data", "raw_data", "community_types.csv"))
+cover <- read.csv(here("data", "clean_data", "percent_cover_clean.csv")) %>% 
+  select(!X) %>% 
+  filter(species == "Sage" | (group == "sage" & date == "2023-06-01")) %>% 
+  group_by(plot, group, date) %>% 
+  reframe(cover = sum(percent_cover, na.rm = T)) %>% 
+  mutate(month = month(date))
+
+cover_march <- cover %>% 
+  filter(month == 3)
+
+cover_june <- cover %>% 
+  filter(month == 6)
+height <- read.csv(here("data", "clean_data", "height_clean.csv")) %>% 
+  mutate(date = mdy(date),
+         month = month(date)) %>% 
+  left_join(community_type, by = "plot")
+height$community <- factor(height$community, levels = c(3,2,1))
+
+height_cover_march <- height %>% 
+  filter(month == 3) %>% 
+  left_join(cover_march, by = "plot") %>% 
+  mutate(cover = case_when(community == 3 ~ 0,
+                           T ~ cover)) %>% 
+  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL"))
+
+height_cover_may <- height %>% 
+  filter(month == 5) %>% 
+  left_join(cover_march, by = "plot") %>% 
+  mutate(cover = case_when(community == 3 ~ 0,
+                           T ~ cover)) %>% 
+  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL"))
+
+growth_cover_sep <- height %>% 
+  mutate(month = case_when(month == 3 ~ "march",
+                           month == 4 ~ "april",
+                           month == 5 ~ "may",
+                           month == 9 ~ "september")) %>% 
+  filter(!month %in% c("april", "march")) %>% 
+  drop_na(id) %>% 
+  pivot_wider(id_cols = c("plot", "id", "species", "community"), names_from = month, values_from = height_cm) %>% 
+  drop_na(september) %>% 
+  mutate(growth = september - may) %>% 
+  left_join(cover_june, by = "plot") %>% 
+  mutate(cover = case_when(community == 3 ~ 0,
+                           T ~ cover)) %>% 
+  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL")) %>% 
+  select(plot, id, species, community, growth, cover)
+
+height_chap <- height %>% 
+  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL"))
+
+```
+
+```{r}
+mod<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "3/9/2023" & species %in% c("ADFA", "RHOV", "MALA")))
+mod
+summary(mod)
+sjPlot::plot_model(mod)
+
+mod2<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "5/17/2023" & species %in% c("ADFA", "RHOV", "MALA")))
+mod2
+summary(mod2)
+sjPlot::plot_model(mod2)
+
+mod3<- glmer(height_cm ~ as.factor(community) + (1|plot), 
+             data = height_chap %>% filter(date %in% c("9/25/2023", "9/22/2023") & species %in% c("ADFA", "RHOV", "MALA")))
+mod3
+summary(mod3)
+sjPlot::plot_model(mod3)
+
+mod4<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "3/9/2023" & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
+mod4
+summary(mod4)
+sjPlot::plot_model(mod4)
+
+mod5<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "5/17/2023" & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
+mod5
+summary(mod5)
+sjPlot::plot_model(mod5)
+
+mod6<- glmer(height_cm ~ as.factor(community) + (1|plot), 
+             data = height_chap %>% filter(date %in% c("9/25/2023", "9/22/2023") & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
+mod6
+summary(mod6)
+sjPlot::plot_model(mod6)
+```
+
+```{r}
+height_cover_mod <- glmer(height_cm~ cover + (1|plot), data = height_cover_march)
+summary(height_cover_mod)
+sjPlot::plot_model(height_cover_mod)
+
+height_cover_may_mod <- glmer(height_cm ~ cover + (1|plot), data = height_cover_may)
+summary(height_cover_may_mod)
+sjPlot::plot_model(height_cover_may_mod)
+
+growth_cover_mod <- glmer(growth~cover + (1|plot), data = growth_cover_sep)
+summary(growth_cover_mod)
+sjPlot::plot_model(growth_cover_mod)
+```
+

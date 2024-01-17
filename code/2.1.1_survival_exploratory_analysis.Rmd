@@ -102,7 +102,8 @@ coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survi
 ```{r}
 cox.zph(coxme(Surv(start_time, end_time, dead) ~ community + (1|plot) + (1|id), data = survival_environmental_chap))
 coxme(Surv(start_time, end_time, dead) ~ community + (1|plot) + (1|id), data = survival_environmental_chap)
-coxme(Surv(start_time, end_time, dead) ~ community + (1|plot) + (1|id), data = survival_environmental_chap %>% filter(end_time < 204))
+coxme(Surv(start_time, end_time, dead) ~ community + (1|plot) + (1|id), data = survival_environmental_chap %>% filter(end_time < 204)) %>% 
+  tbl_regression(exp = T)
 
 coxph(Surv(start_time, end_time, dead) ~ community, id = plot, data = survival_environmental_chap %>%  filter(chap_type == "facultive" & end_time < 204)) %>% tbl_regression(exp = T) ## 204 is through 8-5-2022
 coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survival_environmental_chap %>%  filter(chap_type == "facultive" & end_time > 204)) %>%  tbl_regression(exp = T)
