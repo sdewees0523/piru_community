@@ -20,6 +20,11 @@ cover <- read.csv(here("data", "clean_data", "percent_cover_clean.csv")) %>%
   group_by(plot, group, date) %>% 
   reframe(cover = sum(percent_cover, na.rm = T)) %>% 
   mutate(month = month(date))
+nutrients <- read.csv(here("data", "clean_data", "nutrients_clean.csv")) %>% 
+  group_by(plot) %>% 
+  reframe(nitrogen = mean(Total.N),
+          phosphorous = mean(P),
+          potasium = mean(K))
 
 cover_march <- cover %>% 
   filter(month == 3)
@@ -32,21 +37,23 @@ height <- read.csv(here("data", "clean_data", "height_clean.csv")) %>%
   left_join(community_type, by = "plot")
 height$community <- factor(height$community, levels = c(3,2,1))
 
-height_cover_march <- height %>% 
+height_all_march <- height %>% 
   filter(month == 3) %>% 
   left_join(cover_march, by = "plot") %>% 
   mutate(cover = case_when(community == 3 ~ 0,
                            T ~ cover)) %>% 
-  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL"))
+  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL")) %>% 
+  left_join(nutrients, by = "plot")
 
-height_cover_may <- height %>% 
+height_all_may <- height %>% 
   filter(month == 5) %>% 
   left_join(cover_march, by = "plot") %>% 
   mutate(cover = case_when(community == 3 ~ 0,
                            T ~ cover)) %>% 
-  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL"))
+  filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL")) %>% 
+  left_join(nutrients, by = "plot")
 
-growth_cover_sep <- height %>% 
+growth_all_sep <- height %>% 
   mutate(month = case_when(month == 3 ~ "march",
                            month == 4 ~ "april",
                            month == 5 ~ "may",
@@ -55,12 +62,14 @@ growth_cover_sep <- height %>%
   drop_na(id) %>% 
   pivot_wider(id_cols = c("plot", "id", "species", "community"), names_from = month, values_from = height_cm) %>% 
   drop_na(september) %>% 
-  mutate(growth = september - may) %>% 
+  mutate(growth = (log(september) - log(may))/(128)) %>% 
   left_join(cover_june, by = "plot") %>% 
   mutate(cover = case_when(community == 3 ~ 0,
                            T ~ cover)) %>% 
   filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL")) %>% 
-  select(plot, id, species, community, growth, cover)
+  select(plot, id, species, community, growth, cover)%>% 
+  left_join(nutrients, by = "plot") %>% 
+  drop_na()
 
 height_chap <- height %>% 
   filter(species %in% c("ADFA", "RHOV", "MALA", "HEAR", "CEOL", "CECU", "RHIL"))
@@ -68,50 +77,64 @@ height_chap <- height %>%
 ```
 
 ```{r}
-mod<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "3/9/2023" & species %in% c("ADFA", "RHOV", "MALA")))
+mod<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height %>% filter(date == "2023-03-09" & species %in% c("ADFA", "RHOV", "MALA")))
 mod
 summary(mod)
 sjPlot::plot_model(mod)
 
-mod2<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "5/17/2023" & species %in% c("ADFA", "RHOV", "MALA")))
+mod2<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "2023-05-17" & species %in% c("ADFA", "RHOV", "MALA")))
 mod2
 summary(mod2)
 sjPlot::plot_model(mod2)
 
 mod3<- glmer(height_cm ~ as.factor(community) + (1|plot), 
-             data = height_chap %>% filter(date %in% c("9/25/2023", "9/22/2023") & species %in% c("ADFA", "RHOV", "MALA")))
+             data = height_chap %>% filter(date %in% c(ymd("2023-09-25"), ymd("2023-09-22")) & species %in% c("ADFA", "RHOV", "MALA")))
 mod3
 summary(mod3)
 sjPlot::plot_model(mod3)
 
-mod4<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "3/9/2023" & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
+mod4<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "2023-03-09" & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
 mod4
 summary(mod4)
 sjPlot::plot_model(mod4)
 
-mod5<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "5/17/2023" & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
+mod5<- glmer(height_cm ~ as.factor(community) + (1|plot), data = height_chap %>% filter(date == "2023-05-17" & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
 mod5
 summary(mod5)
 sjPlot::plot_model(mod5)
 
 mod6<- glmer(height_cm ~ as.factor(community) + (1|plot), 
-             data = height_chap %>% filter(date %in% c("9/25/2023", "9/22/2023") & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
+             data = height_chap %>% filter(date %in% c(mdy("9/25/2023"), mdy("9/22/2023")) & species %in% c("HEAR", "RHIL", "CEOL", "CECU")))
 mod6
 summary(mod6)
 sjPlot::plot_model(mod6)
 ```
 
 ```{r}
-height_cover_mod <- glmer(height_cm~ cover + (1|plot), data = height_cover_march)
+height_cover_mod <- glmer(height_cm~ cover + (1|plot), data = height_all_march)
 summary(height_cover_mod)
 sjPlot::plot_model(height_cover_mod)
 
-height_cover_may_mod <- glmer(height_cm ~ cover + (1|plot), data = height_cover_may)
+height_cover_may_mod <- glmer(height_cm ~ cover + (1|plot), data = height_all_may)
 summary(height_cover_may_mod)
 sjPlot::plot_model(height_cover_may_mod)
 
-growth_cover_mod <- glmer(growth~cover + (1|plot), data = growth_cover_sep)
+growth_cover_mod <- glmer(growth~cover + (1|plot), data = growth_all_sep)
 summary(growth_cover_mod)
 sjPlot::plot_model(growth_cover_mod)
+```
+
+```{r}
+height_nutrient_mod <- glmer(height_cm~ nitrogen + (1|plot), data = height_all_march)
+summary(height_nutrient_mod)
+sjPlot::plot_model(height_nutrient_mod)
+
+height_nutrient_may_mod <- glmer(height_cm ~ nitrogen + (1|plot), data = height_all_may)
+summary(height_nutrient_may_mod)
+sjPlot::plot_model(height_nutrient_may_mod)
+
+growth_nutrient_mod <- glmer(growth~nitrogen + (1|plot), data = growth_all_sep)
+summary(growth_nutrient_mod)
+sjPlot::plot_model(growth_nutrient_mod)
 ```
 

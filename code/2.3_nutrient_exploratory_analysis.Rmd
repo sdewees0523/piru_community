@@ -27,20 +27,21 @@ cover_june<- percent_cover %>%
 nutrient <- read.csv(here("data", "clean_data", "nutrients_clean.csv")) %>% 
   group_by(plot) %>% 
   reframe(nitrogen = mean(Total.N),
-          phosphorous = mean(P)) %>% 
+          phosphorous = mean(P),
+          potasium = mean(K)) %>% 
   left_join(community, by = "plot")
 gsw <- read.csv(here("data", "clean_data", "gsw_clean.csv")) %>% 
   left_join(nutrient, by = "plot") %>% 
   left_join(cover_march, by = "plot") %>% 
   mutate(percent_cover = case_when(community == 3 ~ 0,
                                    T ~ percent_cover)) %>% 
-  select(plot, id, species.x, gsw, nitrogen, phosphorous, percent_cover)
+  select(plot, id, species.x, gsw, nitrogen, phosphorous, potasium, percent_cover)
 
 nutrient_cover_march <- nutrient %>% 
   left_join(cover_march, by = "plot") %>% 
   mutate(percent_cover = case_when(is.na(percent_cover) == T ~ 0,
                                    T ~ percent_cover)) %>% 
-  select(plot, nitrogen, phosphorous, percent_cover)
+  select(plot, nitrogen, phosphorous, potasium, percent_cover)
 
 nutrient_cover_june <- nutrient %>% 
   left_join(cover_june, by = "plot") %>% 
@@ -51,6 +52,7 @@ nutrient_cover_june <- nutrient %>%
 ```{r}
 TukeyHSD(aov(nitrogen ~ as.factor(community), data = nutrient))
 TukeyHSD(aov(phosphorous ~ as.factor(community), data = nutrient))
+TukeyHSD(aov(potasium ~ as.factor(community), data = nutrient))
 
 ggplot(nutrient, aes(x = as.factor(community),y = nitrogen))+
   geom_boxplot()+
@@ -59,18 +61,30 @@ ggplot(nutrient, aes(x = as.factor(community),y = nitrogen))+
 ggplot(nutrient, aes(x = as.factor(community), y = phosphorous))+
   geom_boxplot()+
   theme_classic()
+ggplot(nutrient, aes(x = as.factor(community), y = potasium))+
+  geom_boxplot()+
+  theme_classic()
 ```
 
 
 ```{r}
 summary(glm(nitrogen~percent_cover, data = nutrient_cover_march, family = "Gamma"))
 summary(glm(phosphorous~percent_cover, data = nutrient_cover_march, family = "Gamma"))
+summary(glm(potasium~percent_cover, data = nutrient_cover_march, family = "Gamma"))
 
 ggplot(nutrient_cover_march, aes(x = percent_cover, y = nitrogen))+
   geom_point()+
   geom_smooth(method = "glm",
               method.args = list(family = "Gamma")) +
   theme_classic()
+
+ggplot(nutrient_cover_march, aes(x = percent_cover, y = potasium))+
+  geom_point()+
+  geom_smooth(method = "glm",
+              method.args = list(family = "Gamma")) +
+  theme_classic()
+
+
 ```
 
 ```{r}
@@ -78,7 +92,9 @@ summary(glm(cover ~ nitrogen, data = nutrient_cover_june %>% filter(group == "sa
 summary(glm(cover ~ nitrogen, data = nutrient_cover_june %>% filter(group == "nonnative")))
 summary(glm(cover ~ phosphorous, data = nutrient_cover_june %>% filter(group == "sage")))
 summary(glm(cover ~ phosphorous, data = nutrient_cover_june %>% filter(group == "nonnative")))
-summary(glm(cover ~ nitrogen + phosphorous, data = nutrient_cover_june))
+summary(glm(cover ~ nitrogen + phosphorous+ potasium, data = nutrient_cover_june))
+summary(glm(cover ~ potasium, data = nutrient_cover_june %>% filter(group == "sage")))
+summary(glm(cover ~ potasium, data = nutrient_cover_june %>% filter(group == "nonnative")))
 
 ggplot(nutrient_cover_june %>% filter(group =="sage"), aes(x = nitrogen, y = cover)) +
   geom_point()+

@@ -72,8 +72,114 @@ autoplot(survfit(Surv(start_time, end_time, dead) ~ community + community_type, 
 
 autoplot(survfit(Surv(start_time, end_time, dead) ~ community + chap_type, id = unique_id, data = survival_environmental_chap))
 ```
-
 ## Testing if there is a significant effect of plot type
+
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ community + (1|plot), data = survival_environmental_chap))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ community + (1|plot), data = survival_environmental_chap)))
+coxme(Surv(start_time, end_time, dead) ~ community + (1|plot), data = survival_environmental_chap) %>% tbl_regression(exp = T)
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ community + chap_type + (1|plot), data = survival_environmental_chap))
+coxme(Surv(start_time, end_time, dead) ~ community + chap_type + (1|plot), data = survival_environmental_chap) %>%  tbl_regression(exp = T)
+```
+
+## Now testing with number of plants instead of plot type
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_chap))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_chap)))
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_chap %>%  filter(end_time < 204)))
+coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_chap %>%  filter(end_time < 204)) %>%
+  tbl_regression(exp =T)
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_chap %>%  filter(end_time > 204)))
+coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_chap %>%  filter(end_time > 204)) %>% 
+  tbl_regression(exp = T)
+```
+
+## Now testing plants alive and community type
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot), data = survival_environmental_chap))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot), data = survival_environmental_chap)))
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot), data = survival_environmental_chap %>% 
+        filter(end_time < 204)))
+coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot), data = survival_environmental_chap %>% 
+        filter(end_time < 204)) %>% tbl_regression(exp = T)
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot), data = survival_environmental_chap %>% 
+        filter(end_time > 204)))
+coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot), data = survival_environmental_chap %>% 
+        filter(end_time > 204)) %>% tbl_regression(exp = T)
+```
+
+```{r}
+survival_environmental_chap_narrow <- survival_environmental_chap %>% filter(date.y != "2022-06-09") %>% 
+  mutate(par = scale(par))
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + (1|plot), 
+              data = survival_environmental_chap_narrow))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + (1|plot), 
+                   data = survival_environmental_chap)))
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + (1|plot), 
+              data = survival_environmental_chap %>% 
+                filter(end_time < 204)))
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + (1|plot), 
+                   data = survival_environmental_chap %>% 
+                     filter(end_time > 204)))
+
+coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + (1|plot), 
+              data = survival_environmental_chap %>% 
+                filter(end_time < 204)) %>% tbl_regression(exp = T)
+coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + (1|plot), data = survival_environmental_chap
+      %>% filter(end_time > 204)) %>%
+  tbl_regression(exp = T)
+```
+
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + chap_type + (1|plot), 
+              data = survival_environmental_chap_narrow))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + chap_type + (1|plot), 
+                   data = survival_environmental_chap)))
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + chap_type + (1|plot), 
+              data = survival_environmental_chap_narrow %>% filter(end_time < 204)))
+
+coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + chap_type + (1|plot), 
+              data = survival_environmental_chap_narrow %>% filter(end_time < 204)) %>% 
+  tbl_regression(exp = T)
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + chap_type + (1|plot), 
+              data = survival_environmental_chap_narrow %>% filter(end_time > 204)))
+coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + chap_type + (1|plot), 
+              data = survival_environmental_chap_narrow %>% filter(end_time > 204)) %>% 
+  tbl_regression(exp = T)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r}
 cox.zph(coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survival_environmental_chap %>%  filter(chap_type == "facultive")))
@@ -99,15 +205,6 @@ coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survi
   tbl_regression(exp = T)
 ```
 
-```{r}
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ community + (1|plot) + (1|id), data = survival_environmental_chap))
-coxme(Surv(start_time, end_time, dead) ~ community + (1|plot) + (1|id), data = survival_environmental_chap)
-coxme(Surv(start_time, end_time, dead) ~ community + (1|plot) + (1|id), data = survival_environmental_chap %>% filter(end_time < 204)) %>% 
-  tbl_regression(exp = T)
-
-coxph(Surv(start_time, end_time, dead) ~ community, id = plot, data = survival_environmental_chap %>%  filter(chap_type == "facultive" & end_time < 204)) %>% tbl_regression(exp = T) ## 204 is through 8-5-2022
-coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survival_environmental_chap %>%  filter(chap_type == "facultive" & end_time > 204)) %>%  tbl_regression(exp = T)
-```
 
 ## Now testing with number of plants instead of plot type
 
@@ -123,18 +220,7 @@ cox.zph(coxph(Surv(start_time, end_time, dead) ~ plants_alive, id = unique_id, d
 coxph(Surv(start_time, end_time, dead) ~ plants_alive, id = unique_id, data = survival_environmental_chap %>%  filter(end_time > 204)) %>% 
   tbl_regression(exp = T)
 ```
-```{r}
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot) + (1|id), data = survival_environmental_chap))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot) + (1|id), data = survival_environmental_chap)))
 
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot) + (1|id), data = survival_environmental_chap %>%  filter(end_time < 147)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot) + (1|id), data = survival_environmental_chap %>%  filter(end_time < 190)) %>%
-  tbl_regression(exp =T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_chap %>%  filter(end_time > 147)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot) + (1|id), data = survival_environmental_chap %>%  filter(end_time > 147)) %>% 
-  tbl_regression(exp = T)
-```
 
 ## Now testing plants alive and community type
 
@@ -149,16 +235,7 @@ cox.zph(coxph(Surv(start_time, end_time, dead) ~ plants_alive + chap_type, id = 
 coxph(Surv(start_time, end_time, dead) ~ plants_alive + chap_type, id = unique_id, data = survival_environmental_chap %>% filter(end_time > 204)) %>% tbl_regression(exp = T)
 ```
 
-```{r}
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot) + (1|id), data = survival_environmental_chap))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot) + (1|id), data = survival_environmental_chap)))
 
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot), data = survival_environmental_chap %>% filter(end_time < 204)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type + (1|plot) + (1|id), data = survival_environmental_chap %>% filter(end_time < 190)) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + chap_type, id = unique_id, data = survival_environmental_chap %>% filter(end_time > 204)))
-coxph(Surv(start_time, end_time, dead) ~ plants_alive + chap_type, id = unique_id, data = survival_environmental_chap %>% filter(end_time > 204)) %>% tbl_regression(exp = T)
-```
 
 
 ## Visualizing facilitative effect too August
