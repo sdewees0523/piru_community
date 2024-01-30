@@ -1,0 +1,101 @@
+---
+title: "Untitled"
+author: "Shane Dewees"
+date: "2023-01-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(here)
+library(lubridate)
+library(pls)
+```
+
+```{r}
+plant_traits <- read.csv(here("data", "raw_data", "plant_traits.csv")) %>% 
+  rename(species = Species,
+         sla = Specific.Leaf.Area..mm.2.g..1.,
+         leaf_water_content = Leaf.Water.Content....,
+         ldmc = Leaf.Dry.Matter.Content..LDMC...g.g.,
+         leaf_thickness = Leaf.Thickness..mm.,
+         leaf_c_n = Leaf.C.N..kg.kg.,
+         wue = Integrated.Water.Use.Efficiency..13C.in.ppm.,
+         leaf_c_percentage = Leaf.C.Percentage....,
+         leaf_n_percentage = Leaf.N.Percentage....,
+         leaf_n_area = Leaf.N.Area..g.m2.,
+         leaf_n_content_leaf_dry_mass = Leaf.N.Content.Leaf.Dry.Mass..g.N.g.1.DW.,
+         leaf_c_area = Leaf.Carbon.Content.Per.Area..kg.C.per.m2.,
+         form = Form,
+         resprouter = resprouter.,
+         seeder = seeder.,
+         life_span = max.lifespan..years.,
+         altitude_high = Altitude.High..m.,
+         south_latitude = Latitude.S..deg.,
+         north_latitude = Latitude.N..deg.,
+         flowering_season = Flowering.Season,
+         flowering_first_month = Flowering.time..1st.month.,
+         flowering_last_month = Flowering.time..last.month.,
+         flowering_duration = Flowering.Period.Length..d.,
+         growth_rate = growth.rate..category.,
+         crown_height = Crown.Height..m.,
+         max_height = Max.Height..m.,
+         crown_width = Crown.Width..m.,
+         leaf_persistance = Leaf.persistence,
+         petiole_length = Petiole.Length..cm.,
+         leaf_lamina_length = Leaf.Lamina.Length..cm.,
+         leaf_width = Leaf.Width..cm.,
+         dispersal_mechanism = dispersal.mech,
+         time_reproduction = Time.to.Reproduction..mo.,
+         seed_longevity = Seed.longevity..category.,
+         seed_dry_mass = Seed.Dry.Mass..mg.,
+         wood_density = Wood.Density.Specific.Gravity..g.cm.3.) %>% 
+  dplyr::select(species,
+         sla,
+         leaf_water_content,
+         ldmc,
+         leaf_thickness,
+         leaf_c_n,
+         wue,
+         leaf_c_percentage,
+         leaf_n_percentage,
+         leaf_n_area,
+         leaf_n_content_leaf_dry_mass,
+         leaf_c_area,
+         growth_rate,
+         crown_height,
+         max_height,
+         crown_width,
+         petiole_length,
+         leaf_lamina_length,
+         leaf_width,
+         wood_density) %>% 
+  mutate(species = case_when(species == "Adenostoma fasciculatum" ~ "adfa",
+                             species == "Ceanothus cuneatus" ~ "cecu",
+                             species == "Ceanothus oliganthus" ~ "ceol",
+                             species == "Heteromeles arbutifolia" ~ "hear",
+                             species == "Malosma laurina" ~ "mala",
+                             species == "Rhamnus ilicifolia" ~ "rhil",
+                             species == "Rhus ovata" ~ "rhov",
+                             species == "Artemisia californica" ~ "arca",
+                             species == "Eriogonum fasciculatum" ~ "erfa",
+                             species == "Encelia californica" ~ "enca",
+                             species == "Salvia mellifera" ~ "same",
+                             species == "Salvia apiana" ~ "saap",
+                             species == "Salvia leucophylla" ~ "sale")) %>%
+  dplyr::select(species,
+                sla,
+                ldmc,
+                leaf_thickness,
+                petiole_length,
+                leaf_lamina_length,
+                leaf_width,
+                leaf_c_n,
+                leaf_n_percentage,
+                leaf_c_percentage,
+                wood_density, 
+                wue)
+write.csv(plant_traits, here("data", "clean_data", "chaparral_traits_clean.csv"))
+```

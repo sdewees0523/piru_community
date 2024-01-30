@@ -139,13 +139,13 @@ cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + 
 plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
               data = survival_environmental_ceol)))
 cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
-              data = survival_environmental_ceol %>% filter(end_time < 140)))
+              data = survival_environmental_ceol %>% filter(end_time < 141)))
 cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
-              data = survival_environmental_ceol %>% filter(end_time > 140)))
+              data = survival_environmental_ceol %>% filter(end_time > 141)))
 coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
-              data = survival_environmental_ceol %>% filter(end_time < 140)) %>% tbl_regression(exp = T)
+              data = survival_environmental_ceol %>% filter(end_time < 141)) %>% tbl_regression(exp = T)
 coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
-              data = survival_environmental_ceol %>% filter(end_time > 140)) %>% tbl_regression(exp = T)
+              data = survival_environmental_ceol %>% filter(end_time > 141)) %>% tbl_regression(exp = T)
 
 cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
               data = survival_environmental_rhil))
@@ -162,7 +162,6 @@ cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + 
               data = survival_environmental_hear))
 plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear)))
-
 cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time < 204)))
 cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 

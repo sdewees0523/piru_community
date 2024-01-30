@@ -62,7 +62,8 @@ fungus_cover <- fungus %>%
 
 
 ```{r}
-summary(glm(gsw~vesicle_colonization + nitrogen + percent_cover, data = fungus_all))
+summary(glmer(gsw~vesicle_colonization + potasium + nitrogen + percent_cover + (1|plot), data = fungus_all))
+sjPlot::plot_model(glmer(gsw~vesicle_colonization + potasium + nitrogen + percent_cover + (1|plot), data = fungus_all))
 summary(glm(gsw~arbuscule_colonization+ nitrogen + percent_cover, data = fungus_all))
 summary(glm(gsw~hyphae_colonization+ nitrogen + percent_cover, data = fungus_all))
 summary(glm(gsw~vesicle_colonization + arbuscule_colonization + hyphae_colonization, data = fungus_all))

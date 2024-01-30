@@ -137,4 +137,17 @@ growth_nutrient_mod <- glmer(growth~nitrogen + (1|plot), data = growth_all_sep)
 summary(growth_nutrient_mod)
 sjPlot::plot_model(growth_nutrient_mod)
 ```
+```{r}
+height_nutrient_mod <- glmer(height_cm~ potasium + (1|plot), data = height_all_march)
+summary(height_nutrient_mod)
+sjPlot::plot_model(height_nutrient_mod)
+
+height_nutrient_may_mod <- glmer(height_cm ~ potasium + (1|plot), data = height_all_may)
+summary(height_nutrient_may_mod)
+sjPlot::plot_model(height_nutrient_may_mod)
+
+growth_nutrient_mod <- glmer(growth~potasium + (1|plot), data = growth_all_sep)
+summary(growth_nutrient_mod)
+sjPlot::plot_model(growth_nutrient_mod)
+```
 
