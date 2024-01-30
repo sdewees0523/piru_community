@@ -1,0 +1,76 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+library(sf)
+library(stars)
+```
+
+```{r}
+plots <- st_read(here("data", "raw_data", "plots", "plots.shp"))
+ndvi_jan_2022 <- read_stars(here("data", "raw_data", "ndvi_clipped", "jan_2022_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+ndvi_may_2022 <- read_stars(here("data", "raw_data", "ndvi_clipped", "may_2022_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+ndvi_june_2022 <- read_stars(here("data", "raw_data", "ndvi_clipped", "june2022_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+ndvi_sep_2022 <- read_stars(here("data", "raw_data", "ndvi_clipped", "sep_2022_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+ndvi_oct_2022 <- read_stars(here("data", "raw_data", "ndvi_clipped", "oct_2022_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+ndvi_nov_2022 <- read_stars(here("data", "raw_data", "ndvi_clipped", "nov_2022_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+ndvi_march_2023 <- read_stars(here("data", "raw_data", "ndvi_clipped", "mar_2023_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+ndvi_may_2023 <- read_stars(here("data", "raw_data", "ndvi_clipped", "may_2023_ndvi" )) %>% 
+  st_warp(crs = crs(plots))
+
+ndvi_jan_2022_sf <- st_extract(x = ndvi_jan_2022, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+ndvi_may_2022_sf <- st_extract(x = ndvi_may_2022, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+ndvi_june_2022_sf <- st_extract(x = ndvi_june_2022, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+ndvi_sep_2022_sf <- st_extract(x = ndvi_sep_2022, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+ndvi_oct_2022_sf <- st_extract(x = ndvi_oct_2022, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+ndvi_nov_2022_sf <- st_extract(x = ndvi_nov_2022, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+ndvi_march_2023_sf <- st_extract(x = ndvi_march_2023, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+ndvi_may_2023_sf <- st_extract(x = ndvi_may_2023, at = plots, FUN = mean, na.rm = T) %>% 
+  st_as_sf()
+
+plots_ndvi <- plots %>% 
+  st_join(ndvi_jan_2022_sf) %>% 
+  st_join(ndvi_may_2022_sf) %>% 
+  st_join(ndvi_june_2022_sf) %>% 
+  st_join(ndvi_sep_2022_sf) %>% 
+  st_join(ndvi_oct_2022_sf) %>% 
+  st_join(ndvi_nov_2022_sf) %>% 
+  st_join(ndvi_march_2023_sf) %>% 
+  st_join(ndvi_may_2023_sf) %>% 
+  st_drop_geometry() %>% 
+  dplyr::select(!jan_2022nd) %>% 
+  pivot_longer(4:11, names_to = "date", values_to = "ndvi") %>% 
+  mutate(date = case_when(date == "jan_2022_ndvi" ~ mdy("1-01-2022"),
+                          date == "may_2022_ndvi" ~ mdy("05-01-2022"),
+                          date == "june2022_ndvi" ~ mdy("06-01-2022"),
+                          date == "sep_2022_ndvi" ~ mdy("09-01-2022"),
+                          date == "oct_2022_ndvi" ~ mdy("10-01-2022"),
+                          date == "nov_2022_ndvi" ~ mdy("11-01-2022"),
+                          date == "mar_2023_ndvi" ~ mdy("03-01-2023"), 
+                          date == "may_2023_ndvi" ~ mdy("05-01-2023")))
+
+write.csv(plots_ndvi, here("data", "clean_data", "ndvi_clean.csv"))
+  
+```
+
