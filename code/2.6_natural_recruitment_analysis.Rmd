@@ -1,0 +1,92 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-02-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+percent_cover <- read.csv(here("data", "clean_data", "percent_cover_clean.csv")) %>% 
+  filter(!species %in% c("Chaparral", "Sage")) %>% 
+  mutate(group = case_when(group %in% c("all avena", "non native herb") ~ "nonnative",
+                           group %in% c("chaparral", "native herb", "sage", "") ~ "native",
+                           T ~ group),
+         date = ymd(date)) %>% 
+  select(!species & !X) %>% 
+  group_by(plot, group, date) %>% 
+  reframe(percent_cover = sum(percent_cover)) %>% 
+  pivot_wider(names_from = group, values_from = percent_cover) %>% 
+  drop_na()
+natural_recruitment <- read.csv(here("data", "raw_data", "natural_recruitment.csv")) %>% 
+  mutate(date = mdy(date)) %>% 
+  left_join(percent_cover, by = c("plot", "date"))
+
+par <- read.csv(here("data", "clean_data", "par_clean.csv")) %>% 
+  filter(date == "2023-09-25") %>% 
+  group_by(plot) %>% 
+  reframe(par = mean(par))
+
+soil_moisture <- read.csv(here("data", "clean_data", "soil_moisture_clean.csv")) %>% 
+  filter(date == "2023-09-25") %>% 
+  group_by(plot) %>% 
+  reframe(soil_moisture = mean(soil_moisture))
+natural_recruitment_enviro <- natural_recruitment %>% 
+  left_join(par, by = "plot") %>% 
+  left_join(soil_moisture, by = "plot")
+
+summary(glm(nonnative ~ native, family = Gamma, data = percent_cover))
+ggplot(percent_cover, aes(x = native, y = nonnative)) +
+  geom_point() +
+  geom_smooth(method = glm, 
+              method.args = list("Gamma")) +
+  theme_classic()+ 
+  ylim(0,100)
+
+summary(glm(present~native, family = "binomial", data = natural_recruitment))
+summary(glm(present~nonnative, family = "binomial", data = natural_recruitment))
+
+ggplot(natural_recruitment, aes(x = native, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm, 
+              method.args = list("binomial")) +
+  theme_classic()
+
+ggplot(natural_recruitment, aes(x = nonnative, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm, 
+              method.args = list("binomial")) +
+  theme_classic()
+```
+
+```{r}
+summary(glm(present~par, family = "binomial", data = natural_recruitment_enviro))
+summary(glm(present~soil_moisture , family = "binomial", data = natural_recruitment_enviro))
+summary(glm(present~par + native, family = "binomial", data = natural_recruitment_enviro))
+
+ggplot(natural_recruitment_enviro, aes(x = par, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm,
+              method.args = list("binomial")) +
+  theme_classic()
+
+ggplot(natural_recruitment_enviro, aes(x = soil_moisture, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm,
+              method.args = list("binomial")) +
+  theme_classic()
+
+summary(glm(soil_moisture~native, family = "Gamma", data = natural_recruitment_enviro))
+
+ggplot(natural_recruitment_enviro, aes(x = native, y = soil_moisture)) +
+  geom_point()+
+  geom_smooth(method = "glm",
+              method.args = list("Gamma"))+
+  theme_classic()
+```
+

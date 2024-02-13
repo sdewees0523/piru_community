@@ -1,0 +1,1041 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+library(survival)
+```
+
+```{r}
+plant_traits <- read.csv(here("data", "clean_data", "chaparral_traits_clean.csv")) %>% 
+  select(!X)
+temp_vpd <- read.csv(here("data", "clean_data", "temp_vpd_predicted.csv")) %>% 
+  mutate(date = ymd(date))
+
+temp_vpd_summer <- temp_vpd %>% 
+  filter(date >= "2022-06-01" & date < "2022-06-09") %>% 
+  group_by(plot) %>% 
+  reframe(temperature = mean(temperature),
+          vpd = mean(vpd))
+
+temp_vpd_fall <- temp_vpd %>% 
+  filter(date >= "2022-10-01" & date < "2022-11-21") %>% 
+  group_by(plot) %>% 
+  reframe(temperature = mean(temperature),
+          vpd = mean(vpd))
+soil_moisture <- read.csv(here("data", "clean_data", "soil_moisture_clean.csv")) %>% 
+  group_by(date) %>% 
+  mutate(soil_moisture = scale(soil_moisture)) 
+soil_moisture_summer <- soil_moisture %>% 
+  filter(date == "2022-05-06") %>% 
+  group_by(plot) %>% 
+  reframe(soil_moisture = mean(soil_moisture))
+
+soil_moisture_fall <- soil_moisture %>% 
+  filter(date >= "2022-10-01" & date < "2022-11-21") %>% 
+  group_by(plot) %>% 
+  reframe(soil_moisture = mean(soil_moisture))
+load(here("data", "models", "leaf_trait_pca.rda"))
+load(here("data", "models", "trait_survival_model.rda"))
+load(here("data", "models", "early_summer_trait_model.rda"))
+
+survival_data <- read.csv(here("data", "clean_data", "kaplan_survival_data.csv")) %>% 
+  select(!X) %>% 
+  mutate(month = month(start_date),
+         year = year(start_date))
+survival_sum <- survival_data %>% 
+  filter(start_time == 0) %>% 
+  mutate(alive = case_when(dead == 0 ~ 1,
+                           dead == 1 ~ 0)) %>% 
+  group_by(plot) %>% 
+  reframe(plants_alive = sum(alive))
+species_survival_sum <- survival_data %>% 
+  filter(start_time == 0) %>% 
+  mutate(alive = case_when(dead == 0 ~ 1,
+                           dead == 1 ~ 0)) %>% 
+  group_by(plot, species) %>% 
+  reframe(plants_alive = sum(alive))
+
+species_alive_end <- survival_data %>% 
+  filter(month == 11) %>% 
+  mutate(alive = case_when(dead == 0 ~ 1,
+                           dead == 1 ~ 0)) %>% 
+  group_by(plot, species) %>% 
+  reframe(plants_alive = sum(alive))
+
+species_prop_alive_summer <- survival_data %>% 
+  filter(month %in% c(4, 6)) %>% 
+  mutate(alive = case_when(dead == 0 ~ 1,
+                           dead == 1 ~ 0)) %>%
+  group_by(plot, species, start_date) %>% 
+  reframe(alive = sum(alive)) %>% 
+  pivot_wider(names_from = start_date, values_from = alive) %>% 
+  rename(june = '2022-06-09',
+         april = '2022-04-29') %>% 
+  mutate(june = replace_na(june , 0),
+         alive = june/april) %>% 
+  drop_na()
+  
+  
+  
+#  survival_data %>% 
+#  filter(month == 6) %>% 
+#  mutate(alive = case_when(dead == 0 ~ 1,
+#                           dead == 1 ~ 0)) %>% 
+#  group_by(plot, species, community) %>% 
+#  reframe(alive = sum(alive)) %>% 
+#  mutate(alive = case_when(species %in% c("arca", "sale", "saap", "enca") ~ alive/10,
+#                           species %in% c("erfa", "same") ~ alive/7,
+#                           species == "cecu" ~ alive/5,
+#                          community == 1 & species %in% c("ceol", "hear", "rhil") ~ alive/7,
+#                           community == 2 & species %in% c("adfa", "rhov") ~ alive/9,
+#                           community == 2 & species == "mala" ~ alive/8,
+#                           community == 3 & species %in% c("adfa", "rhov", "ceol") ~ alive/13,
+#                           community == 3 & species %in% c("hear", "rhil", "mala") ~ alive/12))
+
+species_prop_alive_fall <- survival_data %>% 
+  filter(month %in% c(6, 10)) %>% 
+  mutate(alive = case_when(dead == 0 ~ 1,
+                           dead == 1 ~ 0)) %>%
+  group_by(plot, species, start_date) %>% 
+  reframe(alive = sum(alive)) %>% 
+  pivot_wider(names_from = start_date, values_from = alive) %>% 
+  rename(june = '2022-06-09',
+         october = '2022-10-19') %>% 
+  mutate(october = replace_na(october , 0),
+         alive = october/june)
+
+simpsons <- survival_data %>% 
+  filter(start_time == 0) %>% 
+  filter(start_time == 0) %>% 
+  mutate(alive = case_when(dead == 0 ~ 1,
+                           dead == 1 ~ 0)) %>%
+  group_by(plot, species) %>% 
+  reframe(alive = sum(alive)) %>% 
+  left_join(survival_sum, by = "plot") %>%
+  mutate(simpsons = (alive/plants_alive)^2) %>% 
+  group_by(plot) %>% 
+  reframe(simpsons = sum(simpsons))
+```
+
+```{r}
+summer_predicted_survival_sale <- temp_vpd_summer %>% 
+  mutate(species = "sale") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_sale, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_sale, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "sale"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_saap <- temp_vpd_summer %>% 
+  mutate(species = "saap") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_saap, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_saap, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "saap"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_same <- temp_vpd_summer %>% 
+  mutate(species = "same") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_same, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_same, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "same"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_arca <- temp_vpd_summer %>% 
+  mutate(species = "arca") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_arca, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_arca, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "arca"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_erfa <- temp_vpd_summer %>% 
+  mutate(species = "erfa") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_erfa, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_erfa, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "erfa"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_enca <- temp_vpd_summer %>% 
+  mutate(species = "enca") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_enca, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_enca, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "enca"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_rhov <- temp_vpd_summer %>% 
+  mutate(species = "rhov") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_rhov, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_rhov, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "rhov"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_adfa <- temp_vpd_summer %>% 
+  mutate(species = "adfa") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_adfa, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_adfa, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "adfa"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_mala <- temp_vpd_summer %>% 
+  mutate(species = "mala") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_mala, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_mala, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "mala"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_ceol <- temp_vpd_summer %>% 
+  mutate(species = "ceol") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_ceol, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_ceol, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "ceol"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_cecu <- temp_vpd_summer %>% 
+  mutate(species = "cecu") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_cecu, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_cecu, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "cecu"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_rhil <- temp_vpd_summer %>% 
+  mutate(species = "rhil") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_rhil, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_rhil, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "rhil"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+summer_predicted_survival_hear <- temp_vpd_summer %>% 
+  mutate(species = "hear") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_summer, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 146,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(early_summer_no_height_model, newdata = . , type = "survival"),
+         interval = predict(early_summer_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = summer_predicted_survival_hear, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = summer_predicted_survival_hear, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_summer %>% filter(species == "hear"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+
+```{r}
+fall_predicted_survival_sale <- temp_vpd_fall %>% 
+  mutate(species = "sale") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_sale, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_sale, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "sale"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+  
+```
+```{r}
+fall_predicted_survival_saap <- temp_vpd_fall %>% 
+  mutate(species = "saap") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_saap, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_saap, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "saap"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+```{r}
+fall_predicted_survival_same <- temp_vpd_fall %>% 
+  mutate(species = "same") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_same, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_same, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "same"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+```{r}
+fall_predicted_survival_enca <- temp_vpd_fall %>% 
+  mutate(species = "enca") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_enca, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_enca, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "enca"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.01,1)
+```
+
+```{r}
+fall_predicted_survival_erfa <- temp_vpd_fall %>% 
+  mutate(species = "erfa") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_erfa, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_erfa, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "erfa"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.03,1)
+```
+
+```{r}
+fall_predicted_survival_arca <- temp_vpd_fall %>% 
+  mutate(species = "arca") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_arca, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_arca, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "arca"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.05,1)
+```
+```{r}
+fall_predicted_survival_rhov <- temp_vpd_fall %>% 
+  mutate(species = "rhov") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_rhov, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_rhov, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "rhov"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.01,1)
+```
+
+```{r}
+fall_predicted_survival_adfa <- temp_vpd_fall %>% 
+  mutate(species = "adfa") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_adfa, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_adfa, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "adfa"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.06,1)
+```
+
+```{r}
+fall_predicted_survival_mala <- temp_vpd_fall %>% 
+  mutate(species = "mala") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_mala, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_mala, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "mala"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(0,1)
+```
+
+```{r}
+fall_predicted_survival_hear <- temp_vpd_fall %>% 
+  mutate(species = "hear") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_hear, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_hear, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "hear"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.01,1)
+```
+
+```{r}
+fall_predicted_survival_ceol <- temp_vpd_fall %>% 
+  mutate(species = "ceol") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_ceol, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_ceol, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "ceol"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.01,1)
+```
+
+```{r}
+fall_predicted_survival_cecu <- temp_vpd_fall %>% 
+  mutate(species = "cecu") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_cecu, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_cecu, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "cecu"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.06,1)
+```
+
+```{r}
+fall_predicted_survival_rhil <- temp_vpd_fall %>% 
+  mutate(species = "rhil") %>% 
+  left_join(plant_traits) %>% 
+  left_join(soil_moisture_fall, by = "plot") %>% 
+  mutate(PC1 = predict(leaf_traits_pca, newdata = .)[,1],
+         PC2 = predict(leaf_traits_pca, newdata = .)[,2],
+         start_time = 0,
+         end_time = 311,
+         dead = 0) %>% 
+  select(plot, start_time, end_time, dead, PC1, PC2, wue, wood_density, temperature, soil_moisture, vpd) %>% 
+  mutate(predicted_survival = predict(fall_trait_no_height_model, newdata = . , type = "survival"),
+         interval = predict(fall_trait_no_height_model, newdata = ., 
+                            type = "survival", se.fit = T, interval = "confidence")[[2]],
+         upper = predicted_survival +interval,
+         lower = predicted_survival - interval) %>% 
+  mutate(plot = as.factor(plot))
+
+ggplot()+
+  geom_point(data = fall_predicted_survival_rhil, aes(x = plot, y = predicted_survival))+
+  geom_errorbar(data = fall_predicted_survival_rhil, aes(x = plot, ymin = lower, ymax = upper))+
+  theme_classic()+
+  geom_point(data = species_prop_alive_fall %>% filter(species == "rhil"), aes(x = as.factor(plot), y = alive), col = "blue")+
+  ylim(-.01,1)
+```
+
+```{r}
+species_mean_prop_alive_summer <- species_prop_alive_summer %>% 
+  group_by(species) %>% 
+  reframe(alive = mean(alive))
+
+summer_predicted_survival_all <- summer_predicted_survival_adfa %>% mutate(species = "adfa") %>% select(plot, species, predicted_survival, interval) %>% 
+  rbind(summer_predicted_survival_arca %>% mutate(species = "arca") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_cecu %>% mutate(species = "cecu") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_ceol %>% mutate(species = "ceol") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_enca %>% mutate(species = "enca") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_erfa %>% mutate(species = "erfa") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_hear %>% mutate(species = "hear") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_mala %>% mutate(species = "mala") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_rhil %>% mutate(species = "rhil") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_rhov %>% mutate(species = "rhov") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_saap %>% mutate(species = "saap") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_sale %>% mutate(species = "sale") %>% select(plot, species, predicted_survival, interval),
+        summer_predicted_survival_same %>% mutate(species = "same") %>% select(plot, species, predicted_survival, interval)) %>% 
+  mutate(plot = as.numeric(plot),
+         community = case_when(species %in% c("arca", "erfa", "enca", "saap", "sale", "same") ~ "sage",
+                               species %in% c("ceol", "cecu", "hear", "rhil", "rhov", "adfa", "mala") ~ "chap")) %>% 
+  left_join(species_prop_alive_summer, by = c("plot", "species")) %>% 
+  drop_na() %>% 
+  group_by(species, community) %>% 
+  reframe(predicted_survival = mean(predicted_survival),
+          interval = mean(interval)) %>% 
+  mutate(lower = predicted_survival - interval,
+         upper = predicted_survival + interval) %>% 
+  left_join(species_prop_alive_summer, by = c("species"))
+
+species_mean_prop_alive_summer <- species_mean_prop_alive_summer %>% 
+  mutate(community = case_when(species %in% c("arca", "erfa", "enca", "saap", "sale", "same") ~ "sage",
+                               species %in% c("ceol", "cecu", "hear", "rhil", "rhov", "adfa", "mala") ~ "chap"))
+
+ggplot(summer_predicted_survival_all, aes(x = species))+
+  geom_point(aes(y = predicted_survival)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper))+
+  geom_jitter(aes(y = alive))+
+  theme_classic()+
+  facet_wrap(~community)
+
+ggplot(summer_predicted_survival_all, aes(x = species))+
+  geom_point(aes(y = predicted_survival)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper))+
+  geom_point(data = species_mean_prop_alive_summer, aes(x = species, y = alive), col = "blue")+
+  theme_classic()+
+  facet_wrap(~community)+
+  ylim(0,1)
+  
+```
+
+```{r}
+survival_simpsons <- summer_predicted_survival_all %>% 
+  mutate(survival_difference = alive - predicted_survival) %>% 
+  left_join(simpsons, by = "plot") %>% 
+  mutate(simpsons = scale(simpsons))
+
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "adfa")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "rhov")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "mala")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "ceol")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "cecu")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "ceol")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "arca")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "erfa")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "enca")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "saap")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "sale")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "same")))
+summary(glm(survival_difference~simpsons, data = survival_simpsons %>% filter(species == "rhil")))
+
+ggplot(survival_simpsons, aes(x = simpsons, y = survival_difference))+
+  geom_point()+
+  facet_wrap(~species)+
+  theme_classic()
+```
+
+
+
+```{r}
+species_mean_prop_alive_fall <- species_prop_alive_fall %>% 
+  group_by(species) %>% 
+  reframe(alive = mean(alive, na.rm = T))
+
+fall_predicted_survival_all <- fall_predicted_survival_adfa %>% mutate(species = "adfa") %>% select(plot, species, predicted_survival, interval) %>% 
+  rbind(fall_predicted_survival_arca %>% mutate(species = "arca") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_cecu %>% mutate(species = "cecu") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_ceol %>% mutate(species = "ceol") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_enca %>% mutate(species = "enca") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_erfa %>% mutate(species = "erfa") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_hear %>% mutate(species = "hear") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_mala %>% mutate(species = "mala") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_rhil %>% mutate(species = "rhil") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_rhov %>% mutate(species = "rhov") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_saap %>% mutate(species = "saap") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_sale %>% mutate(species = "sale") %>% select(plot, species, predicted_survival, interval),
+        fall_predicted_survival_same %>% mutate(species = "same") %>% select(plot, species, predicted_survival, interval)) %>% 
+  mutate(plot = as.numeric(plot),
+         community = case_when(species %in% c("arca", "erfa", "enca", "saap", "sale", "same") ~ "sage",
+                               species %in% c("ceol", "cecu", "hear", "rhil", "rhov", "adfa", "mala") ~ "chap")) %>% 
+  left_join(species_prop_alive_fall, by = c("plot", "species")) %>% 
+  drop_na() %>% 
+  group_by(species, community) %>% 
+  reframe(predicted_survival = mean(predicted_survival),
+          interval = mean(interval)) %>% 
+  mutate(lower = predicted_survival - interval,
+         upper = predicted_survival + interval) %>% 
+  left_join(species_prop_alive_fall, by = c("species"))
+
+species_mean_prop_alive_fall <- species_mean_prop_alive_fall %>% 
+  mutate(community = case_when(species %in% c("arca", "erfa", "enca", "saap", "sale", "same") ~ "sage",
+                               species %in% c("ceol", "cecu", "hear", "rhil", "rhov", "adfa", "mala") ~ "chap"))
+
+ggplot(fall_predicted_survival_all, aes(x = species))+
+  geom_point(aes(y = predicted_survival)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper))+
+  geom_jitter(aes(y = alive))+
+  theme_classic()+
+  facet_wrap(~community)
+
+ggplot(fall_predicted_survival_all, aes(x = species))+
+  geom_point(aes(y = predicted_survival)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper))+
+  geom_point(data = species_mean_prop_alive_fall, aes(x = species, y = alive), col = "blue")+
+  theme_classic()+
+  facet_wrap(~community)+
+  ylim(-0.05,1)
+  
+```
+
+```{r}
+community_types <- read.csv(here("data", "raw_data", "community_types.csv"))
+
+fall_survival_simpsons <- fall_predicted_survival_all %>% 
+  mutate(survival_difference = alive - predicted_survival) %>% 
+  left_join(simpsons, by = "plot") %>% 
+  mutate(simpsons = scale(simpsons)) %>% 
+  left_join(community_types, by = "plot")
+
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "adfa")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "rhov")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "mala")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "ceol")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "cecu")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "hear")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "arca")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "erfa")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "enca")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "saap")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "sale")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "same")))
+summary(glm(survival_difference~simpsons, data = fall_survival_simpsons %>% filter(species == "rhil")))
+
+ggplot(fall_survival_simpsons, aes(x = simpsons, y = survival_difference, col = as.factor(community.y)))+
+  geom_point()+
+  facet_wrap(~species)+
+  theme_classic()
+```
+
+```{r}
+year_1_soil_moisture <- soil_moisture %>% 
+  select(!X) %>% 
+  filter(year(date) == 2022) %>% 
+  group_by(plot) %>% 
+  reframe(soil_moisture = mean(soil_moisture))
+
+total_predicted_survival <- summer_predicted_survival_all %>% 
+  left_join(species_survival_sum, by = c("plot", "species")) %>% 
+  mutate(plants_alive_lower = round(plants_alive * lower),
+         plants_alive_upper = round(plants_alive * upper),
+         plants_alive = round(plants_alive * predicted_survival)) %>% 
+  select(plot, species, plants_alive, plants_alive_lower, plants_alive_upper) %>% 
+  left_join(fall_predicted_survival_all, by = c("plot", "species")) %>% 
+  mutate(plants_alive_lower = round(plants_alive_lower * lower),
+         plants_alive_upper = round(plants_alive_upper * upper),
+         plants_alive = round(plants_alive * predicted_survival)) %>% 
+  select(plot, species, plants_alive, plants_alive_lower, plants_alive_upper) %>% 
+  left_join(species_alive_end, by = c("plot", "species")) %>% 
+  rename(plants_alive = plants_alive.x,
+         actual_alive = plants_alive.y) %>% 
+  mutate(actual_alive = replace_na(actual_alive, 0),
+         difference = actual_alive - plants_alive) %>%
+  left_join(year_1_soil_moisture, by = "plot") %>% 
+  left_join(survival_sum, by = "plot")
+  
+ggplot(total_predicted_survival, aes(x = as.factor(plot))) +
+  geom_point(aes(y = plants_alive.x))+
+  geom_errorbar(aes(ymin = plants_alive_lower, ymax = plants_alive_upper))+
+  geom_point(aes(y = actual_alive), col = "blue")+
+  theme_classic()+
+  facet_wrap(~species)
+
+summary(glm(difference~plants_alive.y, data = total_predicted_survival %>% filter(species == "arca")))
+summary(glm(difference~plants_alive.y, data = total_predicted_survival %>% filter(species == "erfa")))
+summary(glm(difference~plants_alive.y, data = total_predicted_survival %>% filter(species == "enca")))
+summary(glm(difference~plants_alive.y, data = total_predicted_survival %>% filter(species == "saap")))
+summary(glm(difference~plants_alive.y, data = total_predicted_survival %>% filter(species == "sale")))
+summary(glm(difference~plants_alive.y, data = total_predicted_survival %>% filter(species == "same")))
+
+ggplot(total_predicted_survival, aes(x = plants_alive.y, y = difference)) +
+  geom_point()+
+  geom_smooth(method = "glm")+
+  theme_classic()+
+  facet_wrap(~species)
+
+plot_predicted_survival <- total_predicted_survival %>% 
+  group_by(plot) %>% 
+  reframe(predicted_mean = sum(plants_alive.x),
+          predicted_lower = sum(plants_alive_lower),
+          predicted_upper = sum(plants_alive_upper),
+          actual_alive = sum(actual_alive),
+          plants_alive = mean(plants_alive.y)) %>% 
+  mutate(difference = actual_alive - predicted_mean)
+
+ggplot(plot_predicted_survival, aes(x = as.factor(plot)))+
+  geom_point(aes(y = predicted_mean)) +
+  geom_errorbar(aes(ymin = predicted_lower, ymax = predicted_upper))+
+  geom_point(aes(y = actual_alive), col = "blue")+
+  theme_classic()
+
+ggplot(plot_predicted_survival, aes(x = plants_alive, y = difference))+
+  geom_point()+
+  geom_smooth(method = "glm") +
+  theme_classic()
+
+summary(glm(difference~plants_alive, data = plot_predicted_survival))
+```
+

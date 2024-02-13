@@ -21,6 +21,12 @@ survival_data <- read.csv(here("data", "clean_data", "kaplan_survival_data.csv")
   select(!X) %>% 
   mutate(month = month(start_date),
          year = year(start_date))
+ndvi <- read.csv(here("data", "clean_data", "ndvi_clean.csv")) %>% 
+  select(!X) %>% 
+  mutate(date = ymd(date),
+         month = month(date),
+         year = year(date)) %>% 
+  select(plot, ndvi, month, year)
 
 survival_sum <- survival_data %>% 
   filter(species %in% c("sale", "saap", "same", "enca", "arca", "erfa")) %>% 
@@ -62,7 +68,10 @@ survival_environmental_chap <- survival_environmental %>%
   mutate(chap_type = case_when(species %in% c("rhov", "mala", "adfa") ~ "facultive",
                                species %in% c("cecu", "ceol", "rhil", "hear") ~ "obligate"),
          chap_type2 = case_when(species %in% c("cecu", "ceol") ~ "obligate_seeder",
-                               species %in% c("rhil", "hear") ~ "obligate_sprouter"))
+                               species %in% c("rhil", "hear") ~ "obligate_sprouter")) %>% 
+  inner_join(ndvi, by = c("plot", "month", "year")) %>% 
+  mutate(ndvi = ndvi*plants_alive,
+         ndvi = scale(ndvi))
 
 survival_environmental_rhov <- survival_environmental_chap %>% 
   filter(species == "rhov")
@@ -80,101 +89,85 @@ survival_environmental_hear <- survival_environmental_chap %>%
   filter(species == "hear")
 ```
 
+##RHOV
 ```{r}
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhov))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhov) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_adfa))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_adfa)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_adfa %>% filter(end_time < 204)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_adfa %>% filter(end_time > 204)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_adfa %>% filter(end_time < 204)) %>% tbl_regression(exp = T)
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_adfa %>% filter(end_time > 204)) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_mala))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_mala) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_cecu))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_cecu) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_ceol))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_ceol) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhil))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhil)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhil %>% filter(end_time < 238)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhil %>% filter(end_time > 238)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhil %>% filter(end_time < 238)) %>% tbl_regression(exp = T)
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_rhil %>% filter(end_time > 238)) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_hear))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_environmental_hear) %>% tbl_regression(exp = T)
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
+              data = survival_environmental_rhov))
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
+              data = survival_environmental_rhov) %>% 
+  tbl_regression(exp = T)
 ```
 
 ```{r}
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
-              data = survival_environmental_rhov))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
-              data = survival_environmental_rhov)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
-              data = survival_environmental_rhov %>% filter(end_time > 258)) %>% tbl_regression(exp = T)
-
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_adfa))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_adfa) %>% tbl_regression(exp = T)
+```
 
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_mala))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_mala) %>% tbl_regression(exp = T)
+```
 
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_cecu))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_cecu) %>% tbl_regression(exp = T)
+```
 
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_ceol))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_ceol)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_ceol %>% filter(end_time < 141)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_ceol %>% filter(end_time > 141)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_ceol %>% filter(end_time < 141)) %>% tbl_regression(exp = T)
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_ceol %>% filter(end_time > 141)) %>% tbl_regression(exp = T)
+```
 
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_rhil))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_rhil)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_rhil %>% filter(end_time < 250)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_rhil %>% filter(end_time > 250)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_rhil %>% filter(end_time < 250)) %>% tbl_regression(exp = T)
+```
 
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time < 204)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time > 204)))
-plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time > 204))))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time > 204 & end_time < 280)))
-cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time > 280)))
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time < 204)) %>% tbl_regression(exp = T)
-coxme(Surv(start_time, end_time, dead) ~ plants_alive + soil_moisture + par + (1|plot), 
+coxme(Surv(start_time, end_time, dead) ~ ndvi + soil_moisture + par + (1|plot), 
               data = survival_environmental_hear %>% filter(end_time > 204 & end_time < 280)) %>% tbl_regression(exp = T)
 ```
 

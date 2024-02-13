@@ -27,7 +27,8 @@ march_cover <- read.csv(here("data", "raw_data", "percent_cover_march_23.csv")) 
 
 may_cover <- read.csv(here("data", "raw_data", "may_percent_cover.csv")) %>% 
   mutate(date = mdy(date),
-         percent_cover = as.numeric(percent.cover)) %>%
+         percent_cover = as.numeric(percent.cover),
+         percent_cover = replace_na(percent_cover, 0)) %>%
   select(plot, group, species, percent_cover, date) %>% 
   drop_na(percent_cover)
   
