@@ -20,10 +20,14 @@ percent_cover <- read.csv(here("data", "clean_data", "percent_cover_clean.csv"))
          date = ymd(date)) %>% 
   select(!species & !X) %>% 
   group_by(plot, group, date) %>% 
+<<<<<<< HEAD
   reframe(percent_cover = sum(percent_cover)) %>%
   mutate(month = month(date)) %>% 
   filter(month == 6 & group == "native")
   
+=======
+  reframe(percent_cover = sum(percent_cover)) %>% 
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
   pivot_wider(names_from = group, values_from = percent_cover) %>% 
   drop_na()
 natural_recruitment <- read.csv(here("data", "raw_data", "natural_recruitment.csv")) %>% 
@@ -31,6 +35,7 @@ natural_recruitment <- read.csv(here("data", "raw_data", "natural_recruitment.cs
   left_join(percent_cover, by = c("plot", "date"))
 
 par <- read.csv(here("data", "clean_data", "par_clean.csv")) %>% 
+<<<<<<< HEAD
   #filter(date == "2023-09-25") %>% 
   group_by(plot, date) %>% 
   reframe(par = mean(par, na.rm = T)) %>% 
@@ -38,6 +43,11 @@ par <- read.csv(here("data", "clean_data", "par_clean.csv")) %>%
          month = month(date),
          year = year(date)) %>% 
   filter(year == 2023 & month == 5)
+=======
+  filter(date == "2023-09-25") %>% 
+  group_by(plot) %>% 
+  reframe(par = mean(par))
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 
 soil_moisture <- read.csv(here("data", "clean_data", "soil_moisture_clean.csv")) %>% 
   filter(date == "2023-09-25") %>% 
@@ -47,6 +57,7 @@ natural_recruitment_enviro <- natural_recruitment %>%
   left_join(par, by = "plot") %>% 
   left_join(soil_moisture, by = "plot")
 
+<<<<<<< HEAD
 summary(glm(nonnative ~ native, family = Gamma, data = percent_cover %>% filter(date != "2023-03-09")))
 
 figure_5 <- ggplot(percent_cover %>% filter(date != "2023-03-09"), aes(x = native, y = nonnative)) +
@@ -60,10 +71,20 @@ figure_5 <- ggplot(percent_cover %>% filter(date != "2023-03-09"), aes(x = nativ
        y = "Percent nonnative cover")
 
 ggsave("figure5.png", figure_5, path = here("figures"), width = 4, height = 4, units = "in")
+=======
+summary(glm(nonnative ~ native, family = Gamma, data = percent_cover))
+ggplot(percent_cover, aes(x = native, y = nonnative)) +
+  geom_point() +
+  geom_smooth(method = glm, 
+              method.args = list("Gamma")) +
+  theme_classic()+ 
+  ylim(0,100)
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 
 summary(glm(present~native, family = "binomial", data = natural_recruitment))
 summary(glm(present~nonnative, family = "binomial", data = natural_recruitment))
 
+<<<<<<< HEAD
 figure_6a <- ggplot(natural_recruitment, aes(x = native, y = present)) +
   geom_point(alpha = 0.25)+
   geom_text(aes(x = 5, y = 0.9, label = "p < 0.01"))+
@@ -82,6 +103,19 @@ figure_6b <- ggplot(natural_recruitment, aes(x = nonnative, y = present)) +
   theme_classic() +
   labs(x = "Percent nonnative cover",
        y = "Natural recruitment")
+=======
+ggplot(natural_recruitment, aes(x = native, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm, 
+              method.args = list("binomial")) +
+  theme_classic()
+
+ggplot(natural_recruitment, aes(x = nonnative, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm, 
+              method.args = list("binomial")) +
+  theme_classic()
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 ```
 
 ```{r}
@@ -89,6 +123,7 @@ summary(glm(present~par, family = "binomial", data = natural_recruitment_enviro)
 summary(glm(present~soil_moisture , family = "binomial", data = natural_recruitment_enviro))
 summary(glm(present~par + native, family = "binomial", data = natural_recruitment_enviro))
 
+<<<<<<< HEAD
 figure_6c <- ggplot(natural_recruitment_enviro, aes(x = par, y = present)) +
   geom_point(alpha = 0.25)+
   geom_smooth(method = glm,
@@ -129,5 +164,26 @@ ggplot(par_cover, aes(x = percent_cover, y = par))+
   theme_classic()+
   geom_smooth(method = "glm",
               method.args = list("Gamma"))
+=======
+ggplot(natural_recruitment_enviro, aes(x = par, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm,
+              method.args = list("binomial")) +
+  theme_classic()
+
+ggplot(natural_recruitment_enviro, aes(x = soil_moisture, y = present)) +
+  geom_point(alpha = 0.25)+
+  geom_smooth(method = glm,
+              method.args = list("binomial")) +
+  theme_classic()
+
+summary(glm(soil_moisture~native, family = "Gamma", data = natural_recruitment_enviro))
+
+ggplot(natural_recruitment_enviro, aes(x = native, y = soil_moisture)) +
+  geom_point()+
+  geom_smooth(method = "glm",
+              method.args = list("Gamma"))+
+  theme_classic()
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 ```
 

@@ -15,8 +15,11 @@ library(survminer)
 library(ggfortify)
 library(coxme)
 library(patchwork)
+<<<<<<< HEAD
 library(lme4)
 library(lmerTest)
+=======
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 ```
 
 ```{r}
@@ -64,6 +67,7 @@ survival_environmental <- survival_density %>%
   mutate(community = as.factor(community)) %>% 
   filter(end_time < 365)
 
+<<<<<<< HEAD
 plant_traits <- read.csv(here("data", "clean_data", "analysis_traits.csv")) %>% 
   mutate(wood_density = scale(wood_density),
          wue = scale(wue))
@@ -72,11 +76,39 @@ survival_environmental_traits <- survival_density %>%
   left_join(par, by = c("plot", "month", "year")) %>% 
   left_join(soil_moisture, by = c("plot", "month", "year")) %>% 
   left_join(plant_traits, by = "species") %>% 
+=======
+plant_traits <- read.csv(here("data", "clean_data", "chaparral_traits_clean.csv"))
+
+leaf_traits_pca_input <- plant_traits %>% 
+  dplyr::select(sla, 
+                ldmc, 
+                leaf_thickness, 
+                petiole_length,
+                leaf_lamina_length,
+                leaf_width,
+                leaf_c_n,
+                leaf_n_area,
+                leaf_c_area)
+
+leaf_traits_pca <- prcomp(leaf_traits_pca_input, scale = T)
+
+les_plant_traits <- plant_traits %>% 
+  mutate(les_1 = predict(leaf_traits_pca, newdata = .)[,1],
+         les_2 = predict(leaf_traits_pca, newdata = .)[,2]) %>% 
+  select(species, les_1, les_2, wood_density, wue) %>% 
+  mutate(wood_density = scale(wood_density))
+
+survival_environmental_traits <- survival_density %>% 
+  left_join(par, by = c("plot", "month", "year")) %>% 
+  left_join(soil_moisture, by = c("plot", "month", "year")) %>% 
+  left_join(les_plant_traits, by = "species") %>% 
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
   mutate(community = as.factor(community)) %>%
   filter(end_time < 365)
 ```
 
 ```{r}
+<<<<<<< HEAD
 carla_input <- survival_density %>% 
   group_by(plot, id) %>% 
   filter(end_time == max(end_time)) %>% 
@@ -166,6 +198,16 @@ cox_all_estimates <- data_frame("group" = "whole plot",
                                 "upper" = cox_all$table_body$conf.high,
                                 "pvalue" = round(cox_all$table_body$p.value, digits = 3))
 
+=======
+cox_all <- coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_density %>% filter(dead == 1 |end_date == "2022-11-21") %>% mutate(start_time = 0)) %>%  tbl_regression(exp = T)
+
+cox_all_estimates <- data_frame("group" = "whole plot", 
+                                "hazard_ratio" = cox_all$table_body$estimate, 
+                                "lower" = cox_all$table_body$conf.low, 
+                                "upper" = cox_all$table_body$conf.high,
+                                "pvalue" = round(cox_all$table_body$p.value, digits = 3))
+
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 cox_sage <- coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_density %>% filter(community_type == "sage") %>% 
         filter(dead == 1 |end_date == "2022-11-21") %>%  mutate(start_time = 0)) %>% tbl_regression(exp = T)
 
@@ -185,6 +227,7 @@ cox_chap_estimates <- data_frame("group" = "chaparral",
                                 "pvalue" = round(cox_chap$table_body$p.value, digits = 3))
 density_estimates <- rbind(cox_all_estimates, cox_sage_estimates, cox_chap_estimates)
 
+<<<<<<< HEAD
 figure_2 <- ggplot(density_estimates, aes(x = hazard_ratio, y = group)) +
   geom_point()+
   geom_errorbar(aes(xmin = lower, xmax = upper))+
@@ -436,12 +479,158 @@ summary(glm(plants_alive~par + soil_moisture, data = density_early))
 summary(glm(plants_alive~par + soil_moisture, data = density_early %>% filter(date == "2022-04-05")))
 
 ggplot(density_early %>% filter(date == "2022-02-17"), aes(x = soil_moisture, y = plants_alive))+
+=======
+ggplot(density_estimates, aes(x = hazard_ratio, y = group)) +
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
   geom_point()+
-  geom_smooth(method = "glm")+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 1.023, label = paste("p =", pvalue)))+
   theme_classic()
 
 ```
+<<<<<<< HEAD
 ```{r}
 
+=======
+
+
+```{r}
+cox_enviro_all <- coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + par:end_time + (1|plot),
+              data = survival_environmental) %>% 
+  tbl_regression(exp = T)
+
+cox_enviro_all_estimates <- data_frame("group" = "whole plot",
+                                         "variable" = cox_enviro_all$table_body$label,
+                                         "hazard_ratio" = cox_enviro_all$table_body$estimate,
+                                         "lower" = cox_enviro_all$table_body$conf.low,
+                                         "upper" = cox_enviro_all$table_body$conf.high,
+                                         "pvalue" = round(cox_enviro_all$table_body$p.value, digits = 3))
+
+
+cox_enviro_sage <- coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + par:end_time + (1|plot), 
+                         data = survival_environmental %>% filter(community_type == "sage")) %>% tbl_regression(exp = T)
+
+cox_enviro_sage_estimates <- data_frame("group" = "sage scrub",
+                                         "hazard_ratio" = cox_enviro_sage$table_body$estimate,
+                                        "variable" = cox_enviro_sage$table_body$label,
+                                         "lower" = cox_enviro_sage$table_body$conf.low,
+                                         "upper" = cox_enviro_sage$table_body$conf.high,
+                                         "pvalue" = round(cox_enviro_sage$table_body$p.value, digits = 3))
+
+cox_enviro_chap <- coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + par:end_time + (1|plot),
+                         data = survival_environmental %>% filter(community_type == "chap")) %>% 
+  tbl_regression(exp = T)
+
+cox_enviro_chap_estimates <- data_frame("group" = "chaparral",
+                                         "hazard_ratio" = cox_enviro_chap$table_body$estimate,
+                                        "variable" = cox_enviro_chap$table_body$label,
+                                         "lower" = cox_enviro_chap$table_body$conf.low,
+                                         "upper" = cox_enviro_chap$table_body$conf.high,
+                                         "pvalue" = round(cox_enviro_chap$table_body$p.value, digits = 3))
+
+plot_graph <- ggplot(cox_enviro_all_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0, label = paste("p =", pvalue)))+
+  theme_classic()
+
+sage_graph <- ggplot(cox_enviro_sage_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0, label = paste("p =", pvalue)))+
+  theme_classic()
+
+chap_graph <- ggplot(cox_enviro_chap_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0, label = paste("p =", pvalue)))+
+  theme_classic()
+
+figure_2 <- plot_graph/sage_graph/chap_graph + plot_annotation(tag_levels = "A")
+figure_2
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 ```
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_1 + (1|plot),
+                         data = survival_environmental_traits))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_1 + (1|plot),
+                         data = survival_environmental_traits)))
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_2 + (1|plot),
+                         data = survival_environmental_traits))
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*wood_density + (1|plot),
+                         data = survival_environmental_traits))
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*wue + (1|plot),
+                         data = survival_environmental_traits))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*wue + (1|plot),
+                         data = survival_environmental_traits)))
+
+les1_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_1 + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+les2_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_2 + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+wood_density_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*wood_density + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+wue_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*wue + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+
+les1_estimates <- data_frame("hazard_ratio" = les1_model$table_body$estimate,
+                             "variable" = les1_model$table_body$label,
+                             "lower" = les1_model$table_body$conf.low,
+                             "upper" = les1_model$table_body$conf.high,
+                             "pvalue" = round(les1_model$table_body$p.value, digits = 3))
+
+les2_estimates <- data_frame("hazard_ratio" = les2_model$table_body$estimate,
+                             "variable" = les2_model$table_body$label,
+                             "lower" = les2_model$table_body$conf.low,
+                             "upper" = les2_model$table_body$conf.high,
+                             "pvalue" = round(les2_model$table_body$p.value, digits = 3))
+
+wood_density_estimates <- data_frame("hazard_ratio" = wood_density_model$table_body$estimate,
+                             "variable" = wood_density_model$table_body$label,
+                             "lower" = wood_density_model$table_body$conf.low,
+                             "upper" = wood_density_model$table_body$conf.high,
+                             "pvalue" = round(wood_density_model$table_body$p.value, digits = 3))
+
+wue_estimates <- data_frame("hazard_ratio" = wue_model$table_body$estimate,
+                             "variable" = wue_model$table_body$label,
+                             "lower" = wue_model$table_body$conf.low,
+                             "upper" = wue_model$table_body$conf.high,
+                             "pvalue" = round(wue_model$table_body$p.value, digits = 3))
+
+les1_graph <- ggplot(les1_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0, label = paste("p =", pvalue)))+
+  theme_classic()
+les2_graph <- ggplot(les2_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0, label = paste("p =", pvalue)))+
+  theme_classic()
+wood_density_graph <- ggplot(wood_density_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0, label = paste("p =", pvalue)))+
+  theme_classic()
+wue_graph <- ggplot(wue_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0, label = paste("p =", pvalue)))+
+  theme_classic()
+
+figure_3 <- (les1_graph + les2_graph)/(wood_density_graph + wue_graph)
+figure_3
+
+```
+
 

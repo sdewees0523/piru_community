@@ -93,8 +93,8 @@ plant_traits <- read.csv(here("data", "raw_data", "plant_traits.csv")) %>%
                 leaf_lamina_length,
                 leaf_width,
                 leaf_c_n,
-                leaf_n_percentage,
-                leaf_c_percentage,
+                leaf_n_area,
+                leaf_c_area,
                 wood_density, 
                 wue)
 write.csv(plant_traits, here("data", "clean_data", "chaparral_traits_clean.csv"))
