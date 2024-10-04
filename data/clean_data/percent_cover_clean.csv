@@ -197,148 +197,276 @@
 "196",2460,"sage","erfa",8,2023-06-01
 "197",2460,"chaparral","mala",5,2023-06-01
 "198",2460,"chaparral","rhov",3,2023-06-01
-"199",2460,"native herb","lupine",1,2023-06-01
-"200",2460,"non native herb","black mustard",4,2023-06-01
-"201",2460,"non native herb","bromus?",1,2023-06-01
-"202",2460,"non native herb","mystery bright green",1,2023-06-01
-"203",2460,"bare ground","-",6,2023-06-01
-"204",2461,"sage","sale",6,2023-06-01
-"205",2461,"sage","same",3,2023-06-01
-"206",2461,"sage","saap",7.5,2023-06-01
-"207",2461,"sage","enca",9,2023-06-01
-"208",2461,"sage","arca",16,2023-06-01
-"209",2461,"native herb","cryptantha",2,2023-06-01
-"210",2461,"native herb","little yellow",4,2023-06-01
-"211",2461,"non native herb","black mustard",55,2023-06-01
-"212",2461,"non native herb","filleree",1,2023-06-01
-"213",2461,"non native herb","mystery bright green",1,2023-06-01
-"214",2461,"bare ground","-",35,2023-06-01
-"215",2458,"chaparral","mala",1.5,2023-06-01
-"216",2458,"chaparral","rhov",5,2023-06-01
-"217",2458,"chaparral","ceol",1,2023-06-01
-"218",2458,"chaparral","adfa",1,2023-06-01
-"219",2458,"native herb","little yellow",1,2023-06-01
-"220",2458,"non native herb","black mustard",75,2023-06-01
-"221",2458,"non native herb","bromus?",1,2023-06-01
-"222",2458,"bare ground","-",40,2023-06-01
-"223",2462,"sage","sale",1.5,2023-06-01
-"224",2462,"sage","saap",4,2023-06-01
-"225",2462,"sage","arca",3,2023-06-01
-"226",2462,"native herb","cryptantha",10,2023-06-01
-"227",2462,"native herb","lupine",1,2023-06-01
-"228",2462,"native herb","little yellow",4,2023-06-01
-"229",2462,"non native herb","black mustard",70,2023-06-01
-"230",2462,"non native herb","bromus?",1,2023-06-01
-"231",2462,"non native herb","filleree",1,2023-06-01
-"232",2462,"bare ground","-",29,2023-06-01
-"233",2401,"sage","sale",3.5,2023-06-01
-"234",2401,"sage","same",2,2023-06-01
-"235",2401,"sage","saap",4,2023-06-01
-"236",2401,"sage","enca",2,2023-06-01
-"237",2401,"sage","arca",5,2023-06-01
-"238",2401,"sage","erfa",2.5,2023-06-01
-"239",2401,"chaparral","rhov",1,2023-06-01
-"240",2401,"native herb","lupine",7,2023-06-01
-"241",2401,"native herb","little yellow",4,2023-06-01
-"242",2401,"non native herb","black mustard",22,2023-06-01
-"243",2401,"non native herb","bromus?",1,2023-06-01
-"244",2401,"bare ground","-",35,2023-06-01
-"245",2402,"native herb","cryptantha (dead)",4,2023-06-01
-"246",2402,"native herb","lupine",19,2023-06-01
-"247",2402,"native herb","little yellow",16,2023-06-01
-"248",2402,"native herb","mystery",2,2023-06-01
-"249",2402,"non native herb","black mustard",48,2023-06-01
-"250",2402,"non native herb","bromus?",1,2023-06-01
-"251",2402,"non native herb","filleree",3,2023-06-01
-"252",2402,"bare ground","-",21,2023-06-01
-"253",2404,"sage","sale",9,2023-06-01
-"254",2404,"sage","same",8,2023-06-01
-"255",2404,"sage","saap",18,2023-06-01
-"256",2404,"sage","enca",12,2023-06-01
-"257",2404,"sage","arca",14,2023-06-01
-"258",2404,"sage","erfa",8,2023-06-01
-"259",2404,"chaparral","mala",7,2023-06-01
-"260",2404,"chaparral","rhov",1,2023-06-01
-"261",2404,"native herb","lupine",3,2023-06-01
-"262",2404,"native herb","little yellow",9,2023-06-01
-"263",2404,"non native herb","black mustard",19,2023-06-01
-"264",2404,"non native herb","bromus?",2,2023-06-01
-"265",2404,"bare ground","-",26,2023-06-01
-"266",2405,"sage","sale",4.5,2023-06-01
-"267",2405,"sage","same",3,2023-06-01
-"268",2405,"sage","saap",3,2023-06-01
-"269",2405,"sage","enca",5,2023-06-01
-"270",2405,"sage","erfa",5.5,2023-06-01
-"271",2405,"native herb","lupine",6,2023-06-01
-"272",2405,"native herb","little yellow",8,2023-06-01
-"273",2405,"non native herb","black mustard",70,2023-06-01
-"274",2405,"non native herb","bromus?",1,2023-06-01
-"275",2405,"non native herb","mystery bright green",1,2023-06-01
-"276",2405,"bare ground","",30,2023-06-01
-"277",2459,"chaparral","hear",1.5,2023-06-01
-"278",2459,"chaparral","rhov",6,2023-06-01
-"279",2459,"chaparral","mala",8,2023-06-01
-"280",2459,"chaparral","rhil",1,2023-06-01
-"281",2459,"chaparral","adfa",3,2023-06-01
-"282",2459,"native herb","morning glory",1,2023-06-01
-"283",2459,"non native herb","black mustard",65,2023-06-01
-"284",2459,"non native herb","bromus?",1,2023-06-01
-"285",2459,"non native herb","mystery bright green",2,2023-06-01
-"286",2459,"bare ground","-",42,2023-06-01
-"287",11,"sage","sale",5,2023-06-01
-"288",11,"sage","same",2,2023-06-01
-"289",11,"sage","saap",11.5,2023-06-01
-"290",11,"sage","enca",7,2023-06-01
-"291",11,"sage","arca",1,2023-06-01
-"292",11,"sage","erfa",2,2023-06-01
-"293",11,"native herb","cryptantha",5,2023-06-01
-"294",11,"native herb","lupine",1,2023-06-01
-"295",11,"native herb","little yellow",1.5,2023-06-01
-"296",11,"non native herb","black mustard",50,2023-06-01
-"297",11,"non native herb","bromus?",1,2023-06-01
-"298",11,"bare ground","",38,2023-06-01
-"299",12,"chaparral","rhov",6,2023-06-01
-"300",12,"chaparral","adfa",1,2023-06-01
-"301",12,"chaparral","cecu",1.5,2023-06-01
-"302",12,"chaparral","rhil",1,2023-06-01
-"303",12,"chaparral","ceol",3,2023-06-01
-"304",12,"native herb","lupine",3,2023-06-01
-"305",12,"native herb","little yellow",6,2023-06-01
-"306",12,"native herb","cryptantha",9,2023-06-01
-"307",12,"non native herb","black mustard",60,2023-06-01
-"308",12,"non native herb","bromus?",1,2023-06-01
-"309",12,"non native herb","mystery green",2,2023-06-01
-"310",12,"non native herb","filleree",1,2023-06-01
-"311",12,"bare ground","-",37,2023-06-01
-"312",13,"sage","sale",8,2023-06-01
-"313",13,"sage","same",3,2023-06-01
-"314",13,"sage","saap",5,2023-06-01
-"315",13,"sage","enca",6,2023-06-01
-"316",13,"sage","arca",12,2023-06-01
-"317",13,"chaparral","cecu",2,2023-06-01
-"318",13,"native herb","lupine",1,2023-06-01
-"319",13,"native herb","little yellow (acmispon)",21,2023-06-01
-"320",13,"non native herb","black mustard",55,2023-06-01
-"321",13,"all avena","",1,2023-06-01
-"322",13,"","mystery (stephanamarya native)",1,2023-06-01
-"323",13,"bare ground","-",21,2023-06-01
-"324",14,"sage","sale",17,2023-06-01
-"325",14,"sage","same",7,2023-06-01
-"326",14,"sage","saap",15,2023-06-01
-"327",14,"sage","enca",20,2023-06-01
-"328",14,"sage","arca",24,2023-06-01
-"329",14,"sage","erfa",4,2023-06-01
-"330",14,"chaparral","rhov",3,2023-06-01
-"331",14,"chaparral","mala",1.5,2023-06-01
-"332",14,"native herb","lupine",1,2023-06-01
-"333",14,"native herb","little yellow",1.5,2023-06-01
-"334",14,"non native herb","black mustard",4,2023-06-01
-"335",14,"non native herb","bromus?",3,2023-06-01
-"336",14,"bare ground","-",18,2023-06-01
-"337",15,"chaparral","rhov",1,2023-06-01
-"338",15,"native herb","cryptantha (dead)",40,2023-06-01
-"339",15,"native herb","lupine (dead)",7,2023-06-01
-"340",15,"native herb","little yellow",2,2023-06-01
-"341",15,"non native herb","black mustard",20,2023-06-01
-"342",15,"non native herb","bromus?",1,2023-06-01
-"343",15,"bare ground","-",45,2023-06-01
+"199",2460,"native herb","poppy",0,2023-06-01
+"200",2460,"native herb","lupine",1,2023-06-01
+"201",2460,"native herb","little yellow",0,2023-06-01
+"202",2460,"non native herb","black mustard",4,2023-06-01
+"203",2460,"non native herb","bromus?",1,2023-06-01
+"204",2460,"non native herb","mystery bright green",1,2023-06-01
+"205",2460,"bare ground","-",6,2023-06-01
+"206",2461,"sage","sale",6,2023-06-01
+"207",2461,"sage","same",3,2023-06-01
+"208",2461,"sage","saap",7.5,2023-06-01
+"209",2461,"sage","enca",9,2023-06-01
+"210",2461,"sage","arca",16,2023-06-01
+"211",2461,"sage","erfa",0,2023-06-01
+"212",2461,"chaparral","hear",0,2023-06-01
+"213",2461,"chaparral","rhov",0,2023-06-01
+"214",2461,"native herb","cryptantha",2,2023-06-01
+"215",2461,"native herb","lupine",0,2023-06-01
+"216",2461,"native herb","little yellow",4,2023-06-01
+"217",2461,"non native herb","black mustard",55,2023-06-01
+"218",2461,"non native herb","filleree",1,2023-06-01
+"219",2461,"non native herb","bromus?",0,2023-06-01
+"220",2461,"non native herb","mystery bright green",1,2023-06-01
+"221",2461,"bare ground","-",35,2023-06-01
+"222",2458,"sage","sale",0,2023-06-01
+"223",2458,"sage","same",0,2023-06-01
+"224",2458,"sage","saap",0,2023-06-01
+"225",2458,"sage","enca",0,2023-06-01
+"226",2458,"sage","arca",0,2023-06-01
+"227",2458,"sage","erfa",0,2023-06-01
+"228",2458,"chaparral","mala",1.5,2023-06-01
+"229",2458,"chaparral","rhov",5,2023-06-01
+"230",2458,"chaparral","ceol",1,2023-06-01
+"231",2458,"chaparral","adfa",1,2023-06-01
+"232",2458,"native herb","poppy",0,2023-06-01
+"233",2458,"native herb","lupine",0,2023-06-01
+"234",2458,"native herb","little yellow",1,2023-06-01
+"235",2458,"non native herb","black mustard",75,2023-06-01
+"236",2458,"non native herb","bromus?",1,2023-06-01
+"237",2458,"bare ground","-",40,2023-06-01
+"238",2462,"sage","sale",1.5,2023-06-01
+"239",2462,"sage","same",0,2023-06-01
+"240",2462,"sage","saap",4,2023-06-01
+"241",2462,"sage","enca",0,2023-06-01
+"242",2462,"sage","arca",3,2023-06-01
+"243",2462,"sage","erfa",0,2023-06-01
+"244",2462,"chaparral","hear",0,2023-06-01
+"245",2462,"chaparral","rhov",0,2023-06-01
+"246",2462,"native herb","poppy",0,2023-06-01
+"247",2462,"native herb","cryptantha",10,2023-06-01
+"248",2462,"native herb","lupine",1,2023-06-01
+"249",2462,"native herb","little yellow",4,2023-06-01
+"250",2462,"non native herb","black mustard",70,2023-06-01
+"251",2462,"non native herb","bromus?",1,2023-06-01
+"252",2462,"non native herb","filleree",1,2023-06-01
+"253",2462,"bare ground","-",29,2023-06-01
+"254",2401,"sage","sale",3.5,2023-06-01
+"255",2401,"sage","same",2,2023-06-01
+"256",2401,"sage","saap",4,2023-06-01
+"257",2401,"sage","enca",2,2023-06-01
+"258",2401,"sage","arca",5,2023-06-01
+"259",2401,"sage","erfa",2.5,2023-06-01
+"260",2401,"chaparral","hear",0,2023-06-01
+"261",2401,"chaparral","rhov",1,2023-06-01
+"262",2401,"native herb","poppy",0,2023-06-01
+"263",2401,"native herb","lupine",7,2023-06-01
+"264",2401,"native herb","little yellow",4,2023-06-01
+"265",2401,"non native herb","black mustard",22,2023-06-01
+"266",2401,"non native herb","bromus?",1,2023-06-01
+"267",2401,"bare ground","-",35,2023-06-01
+"268",2402,"sage","sale",0,2023-06-01
+"269",2402,"sage","same",0,2023-06-01
+"270",2402,"sage","saap",0,2023-06-01
+"271",2402,"sage","enca",0,2023-06-01
+"272",2402,"sage","arca",0,2023-06-01
+"273",2402,"sage","erfa",0,2023-06-01
+"274",2402,"chaparral","hear",0,2023-06-01
+"275",2402,"chaparral","rhov",0,2023-06-01
+"276",2402,"native herb","cryptantha (dead)",4,2023-06-01
+"277",2402,"native herb","lupine",19,2023-06-01
+"278",2402,"native herb","little yellow",16,2023-06-01
+"279",2402,"native herb","mystery",2,2023-06-01
+"280",2402,"non native herb","black mustard",48,2023-06-01
+"281",2402,"non native herb","bromus?",1,2023-06-01
+"282",2402,"non native herb","filleree",3,2023-06-01
+"283",2402,"bare ground","-",21,2023-06-01
+"284",2404,"sage","sale",9,2023-06-01
+"285",2404,"sage","same",8,2023-06-01
+"286",2404,"sage","saap",18,2023-06-01
+"287",2404,"sage","enca",12,2023-06-01
+"288",2404,"sage","arca",14,2023-06-01
+"289",2404,"sage","erfa",8,2023-06-01
+"290",2404,"chaparral","mala",7,2023-06-01
+"291",2404,"chaparral","rhov",1,2023-06-01
+"292",2404,"native herb","poppy",0,2023-06-01
+"293",2404,"native herb","lupine",3,2023-06-01
+"294",2404,"native herb","little yellow",9,2023-06-01
+"295",2404,"non native herb","black mustard",19,2023-06-01
+"296",2404,"non native herb","bromus?",2,2023-06-01
+"297",2404,"bare ground","-",26,2023-06-01
+"298",2405,"sage","sale",4.5,2023-06-01
+"299",2405,"sage","same",3,2023-06-01
+"300",2405,"sage","saap",3,2023-06-01
+"301",2405,"sage","enca",5,2023-06-01
+"302",2405,"sage","arca",0,2023-06-01
+"303",2405,"sage","erfa",5.5,2023-06-01
+"304",2405,"chaparral","hear",0,2023-06-01
+"305",2405,"chaparral","rhov",0,2023-06-01
+"306",2405,"native herb","poppy",0,2023-06-01
+"307",2405,"native herb","lupine",6,2023-06-01
+"308",2405,"native herb","little yellow",8,2023-06-01
+"309",2405,"non native herb","black mustard",70,2023-06-01
+"310",2405,"non native herb","bromus?",1,2023-06-01
+"311",2405,"non native herb","mystery bright green",1,2023-06-01
+"312",2405,"bare ground","",30,2023-06-01
+"313",2459,"sage","sale",0,2023-06-01
+"314",2459,"sage","same",0,2023-06-01
+"315",2459,"sage","saap",0,2023-06-01
+"316",2459,"sage","enca",0,2023-06-01
+"317",2459,"sage","arca",0,2023-06-01
+"318",2459,"sage","erfa",0,2023-06-01
+"319",2459,"chaparral","hear",1.5,2023-06-01
+"320",2459,"chaparral","rhov",6,2023-06-01
+"321",2459,"chaparral","mala",8,2023-06-01
+"322",2459,"chaparral","rhil",1,2023-06-01
+"323",2459,"chaparral","adfa",3,2023-06-01
+"324",2459,"native herb","morning glory",1,2023-06-01
+"325",2459,"native herb","lupine",0,2023-06-01
+"326",2459,"native herb","little yellow",0,2023-06-01
+"327",2459,"non native herb","black mustard",65,2023-06-01
+"328",2459,"non native herb","bromus?",1,2023-06-01
+"329",2459,"non native herb","mystery bright green",2,2023-06-01
+"330",2459,"bare ground","-",42,2023-06-01
+"331",11,"sage","sale",5,2023-06-01
+"332",11,"sage","same",2,2023-06-01
+"333",11,"sage","saap",11.5,2023-06-01
+"334",11,"sage","enca",7,2023-06-01
+"335",11,"sage","arca",1,2023-06-01
+"336",11,"sage","erfa",2,2023-06-01
+"337",11,"chaparral","hear",0,2023-06-01
+"338",11,"chaparral","rhov",0,2023-06-01
+"339",11,"native herb","cryptantha",5,2023-06-01
+"340",11,"native herb","lupine",1,2023-06-01
+"341",11,"native herb","little yellow",1.5,2023-06-01
+"342",11,"non native herb","black mustard",50,2023-06-01
+"343",11,"non native herb","bromus?",1,2023-06-01
+"344",11,"bare ground","",38,2023-06-01
+"345",12,"sage","sale",0,2023-06-01
+"346",12,"sage","same",0,2023-06-01
+"347",12,"sage","saap",0,2023-06-01
+"348",12,"sage","enca",0,2023-06-01
+"349",12,"sage","arca",0,2023-06-01
+"350",12,"sage","erfa",0,2023-06-01
+"351",12,"chaparral","hear",0,2023-06-01
+"352",12,"chaparral","rhov",6,2023-06-01
+"353",12,"chaparral","adfa",1,2023-06-01
+"354",12,"chaparral","cecu",1.5,2023-06-01
+"355",12,"chaparral","rhil",1,2023-06-01
+"356",12,"chaparral","ceol",3,2023-06-01
+"357",12,"native herb","poppy",0,2023-06-01
+"358",12,"native herb","lupine",3,2023-06-01
+"359",12,"native herb","little yellow",6,2023-06-01
+"360",12,"native herb","cryptantha",9,2023-06-01
+"361",12,"non native herb","black mustard",60,2023-06-01
+"362",12,"non native herb","bromus?",1,2023-06-01
+"363",12,"non native herb","mystery green",2,2023-06-01
+"364",12,"non native herb","filleree",1,2023-06-01
+"365",12,"bare ground","-",37,2023-06-01
+"366",13,"sage","sale",8,2023-06-01
+"367",13,"sage","same",3,2023-06-01
+"368",13,"sage","saap",5,2023-06-01
+"369",13,"sage","enca",6,2023-06-01
+"370",13,"sage","arca",12,2023-06-01
+"371",13,"sage","erfa",0,2023-06-01
+"372",13,"chaparral","hear",0,2023-06-01
+"373",13,"chaparral","rhov",0,2023-06-01
+"374",13,"chaparral","cecu",2,2023-06-01
+"375",13,"native herb","poppy",0,2023-06-01
+"376",13,"native herb","lupine",1,2023-06-01
+"377",13,"native herb","little yellow (acmispon)",21,2023-06-01
+"378",13,"non native herb","black mustard",55,2023-06-01
+"379",13,"all avena","",1,2023-06-01
+"380",13,"","mystery (stephanamarya native)",1,2023-06-01
+"381",13,"bare ground","-",21,2023-06-01
+"382",14,"sage","sale",17,2023-06-01
+"383",14,"sage","same",7,2023-06-01
+"384",14,"sage","saap",15,2023-06-01
+"385",14,"sage","enca",20,2023-06-01
+"386",14,"sage","arca",24,2023-06-01
+"387",14,"sage","erfa",4,2023-06-01
+"388",14,"chaparral","hear",0,2023-06-01
+"389",14,"chaparral","rhov",3,2023-06-01
+"390",14,"chaparral","mala",1.5,2023-06-01
+"391",14,"native herb","poppy",0,2023-06-01
+"392",14,"native herb","lupine",1,2023-06-01
+"393",14,"native herb","little yellow",1.5,2023-06-01
+"394",14,"non native herb","black mustard",4,2023-06-01
+"395",14,"non native herb","bromus?",3,2023-06-01
+"396",14,"bare ground","-",18,2023-06-01
+"397",15,"sage","sale",0,2023-06-01
+"398",15,"sage","same",0,2023-06-01
+"399",15,"sage","saap",0,2023-06-01
+"400",15,"sage","enca",0,2023-06-01
+"401",15,"sage","arca",0,2023-06-01
+"402",15,"sage","erfa",0,2023-06-01
+"403",15,"chaparral","hear",0,2023-06-01
+"404",15,"chaparral","rhov",1,2023-06-01
+"405",15,"native herb","cryptantha (dead)",40,2023-06-01
+"406",15,"native herb","lupine (dead)",7,2023-06-01
+"407",15,"native herb","little yellow",2,2023-06-01
+"408",15,"non native herb","black mustard",20,2023-06-01
+"409",15,"non native herb","bromus?",1,2023-06-01
+"410",15,"bare ground","-",45,2023-06-01
+"411",15,"sage","",0,2024-01-15
+"412",15,"chaparral","",0,2024-01-15
+"413",15,"non native herb","",65,2024-01-15
+"414",15,"bare ground","",35,2024-01-15
+"415",14,"sage","",45,2024-01-15
+"416",14,"chaparral","",2,2024-01-15
+"417",14,"non native herb","",4,2024-01-15
+"418",14,"bare ground","",60,2024-01-15
+"419",13,"sage","",20,2024-01-15
+"420",13,"chaparral","",1,2024-01-15
+"421",13,"non native herb","",5,2024-01-15
+"422",13,"bare ground","",75,2024-01-15
+"423",12,"sage","",0,2024-01-15
+"424",12,"native herb","",0,2024-01-15
+"425",12,"chaparral","",3,2024-01-15
+"426",12,"non native herb","",50,2024-01-15
+"427",12,"bare ground","",50,2024-01-15
+"428",11,"sage","",15,2024-01-15
+"429",11,"chaparral","",0,2024-01-15
+"430",11,"non native herb","",20,2024-01-15
+"431",11,"bare ground","",70,2024-01-15
+"432",2405,"sage","",13,2024-01-15
+"433",2405,"chaparral","",0,2024-01-15
+"434",2405,"non native herb","",40,2024-01-15
+"435",2405,"bare ground","",50,2024-01-15
+"436",2459,"sage","",0,2024-01-15
+"437",2459,"chaparral","",15,2024-01-15
+"438",2459,"non native herb","",70,2024-01-15
+"439",2459,"bare ground","",25,2024-01-15
+"440",2401,"sage","",17,2024-01-15
+"441",2401,"chaparral","",0,2024-01-15
+"442",2401,"non native herb","",30,2024-01-15
+"443",2401,"bare ground","",70,2024-01-15
+"444",2462,"sage","",5,2024-01-15
+"445",2462,"chaparral","",0,2024-01-15
+"446",2462,"non native herb","",70,2024-01-15
+"447",2462,"bare ground","",25,2024-01-15
+"448",2458,"sage","",0,2024-01-15
+"449",2458,"chaparral","",3,2024-01-15
+"450",2458,"non native herb","",60,2024-01-15
+"451",2458,"bare ground","",40,2024-01-15
+"452",2461,"sage","",30,2024-01-15
+"453",2461,"chaparral","",5,2024-01-15
+"454",2461,"non native herb","",20,2024-01-15
+"455",2461,"bare ground","",50,2024-01-15
+"456",2402,"sage","",0,2024-01-15
+"457",2402,"chaparral","",0,2024-01-15
+"458",2402,"non native herb","",40,2024-01-15
+"459",2402,"bare ground","",60,2024-01-15
+"460",2404,"sage","",0,2024-01-15
+"461",2404,"chaparral","",40,2024-01-15
+"462",2404,"non native herb","",13,2024-01-15
+"463",2404,"bare ground","",50,2024-01-15
+"464",2403,"sage","",65,2024-01-15
+"465",2403,"chaparral","",0,2024-01-15
+"466",2403,"non native herb","",7,2024-01-15
+"467",2403,"bare ground","",25,2024-01-15
+"468",2460,"sage","",80,2024-01-15
+"469",2460,"chaparral","",3,2024-01-15
+"470",2460,"non native herb","",3,2024-01-15
+"471",2460,"bare ground","",20,2024-01-15

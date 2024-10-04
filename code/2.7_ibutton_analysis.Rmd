@@ -1,0 +1,138 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-09-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+library(quantreg)
+library(lme4)
+library(lmerTest)
+```
+
+```{r} 
+par <- read.csv(here("data", "clean_data", "par_clean.csv"))
+
+cover <- read.csv(here("data", "clean_data", "percent_cover_clean.csv"))
+
+temperature <- read.csv(here("data", "clean_data", "temperature.csv")) %>% 
+  dplyr::select(!X) %>% 
+  mutate(month = month(date))
+
+vpd <- read.csv(here("data", "clean_data", "vpd.csv")) %>% 
+  dplyr::select(!X) %>% 
+  mutate(month = month(date))
+
+survival_data <- read.csv(here("data", "clean_data", "kaplan_survival_data.csv")) %>% 
+  select(!X) %>% 
+  mutate(month = month(start_date),
+         year = year(start_date))
+
+survival_sum <- survival_data %>% 
+  filter(end_date == "2023-05-17") %>% 
+  mutate(alive = case_when(dead == 0 ~ 1,
+                           dead == 1 ~ 0)) %>% 
+  group_by(plot) %>% 
+  reframe(plants_alive = sum(alive))
+```
+
+```{r}
+max_temperature <- temperature %>% 
+  group_by(plot, rep, date) %>% 
+  reframe(temperature = max(temperature)) %>% 
+  mutate(month = month(date)) %>% 
+  group_by(plot, rep, month) %>% 
+  reframe(temperature = mean(temperature))
+
+max_vpd <- vpd %>% 
+  group_by(plot, rep, date) %>% 
+  reframe(vpd = max(vpd)) %>% 
+  mutate(month = month(date)) %>% 
+  group_by(plot, rep, month) %>% 
+  reframe(vpd = mean(vpd))
+```
+
+
+```{r}
+native_cover_june <- cover %>% 
+  filter(date == "2023-06-01") %>% 
+  filter(group == c("chaparral")) %>% 
+  group_by(plot) %>% 
+  reframe(percent_cover = sum(percent_cover))
+
+par_june <- par %>% 
+  filter(date == "2023-09-25") %>% 
+  group_by(plot) %>% 
+  reframe(par = mean(par))
+
+vpd_cover_june <- max_vpd %>% 
+  filter(month >= 6) %>% 
+  left_join(native_cover_june, by = "plot") %>% 
+  mutate(month = as.factor(month))
+
+vpd_par_june <- max_vpd %>% 
+  filter(month >= 6) %>% 
+  left_join(par_june, by = "plot") %>% 
+  mutate(month = as.factor(month))
+
+summary(lmer(vpd~par + (1|month), data = vpd_par_june))
+summary(lmer(vpd~percent_cover + (1|month), data = vpd_cover_june))
+
+ggplot(vpd_par_june, aes(par, vpd, col = as.factor(plot)))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+
+ggplot(vpd_cover_june, aes(percent_cover, vpd, col = month))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+```
+
+```{r}
+temp_cover_june <- max_temperature %>% 
+  filter(month >= 6) %>% 
+  left_join(native_cover_june, by = "plot")
+
+temp_par_june <- max_temperature %>% 
+  filter(month >= 6) %>% 
+  left_join(par_june, by = "plot")
+
+summary(lmer(temperature~par + (1|month), data = temp_par_june))
+summary(lmer(temperature~percent_cover + (1|month), data = temp_cover_june))
+
+ggplot(temp_par_june, aes(x = par, y = temperature))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+```
+```{r}
+vpd_plants <- max_vpd %>% 
+  filter(month >=6) %>% 
+  full_join(survival_sum, by = "plot") %>% 
+  mutate(plants_alive = replace_na(plants_alive, 0))
+
+temp_plants <- max_temperature %>% 
+  filter(month >=6) %>% 
+  full_join(survival_sum, by = "plot") %>% 
+  mutate(plants_alive = replace_na(plants_alive, 0))
+
+summary(lmer(vpd~plants_alive + (1|month), data = vpd_plants))
+summary(lmer(temperature~plants_alive + (1|month), data = temp_plants))
+
+ggplot(vpd_plants, aes(x = plants_alive, y = vpd))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+
+ggplot(temp_plants, aes(x = plants_alive, y = temperature))+
+  geom_point()+
+  facet_wrap(~month)+
+  theme_classic()
+
+```
+

@@ -3,8 +3,8 @@ title: "Untitled"
 output: html_document
 date: "2024-01-12"
 ---
-
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
 library(survival)
@@ -13,6 +13,10 @@ library(ggsurvfit)
 library(gtsummary)
 library(survminer)
 library(ggfortify)
+library(coxme)
+library(patchwork)
+library(lme4)
+library(lmerTest)
 ```
 
 ```{r}
@@ -22,283 +26,422 @@ survival_data <- read.csv(here("data", "clean_data", "kaplan_survival_data.csv")
          year = year(start_date))
 
 survival_sum <- survival_data %>% 
-  filter(species %in% c("sale", "saap", "same", "enca", "arca", "erfa")) %>% 
+  filter(start_time == 0) %>% 
   mutate(alive = case_when(dead == 0 ~ 1,
                            dead == 1 ~ 0)) %>% 
-  group_by(plot, end_date) %>% 
-  reframe(plants_alive = sum(alive)) %>% 
-  rename(start_date = end_date) 
+  group_by(plot) %>% 
+  reframe(plants_alive = sum(alive))
+
+
+survival_density <- survival_data %>% 
+  filter(start_time != 0 & end_time < 365) %>% 
+  left_join(survival_sum, by = "plot")
 
 par <- read.csv(here("data", "clean_data", "par_clean.csv")) %>% 
   select(!X) %>% 
   group_by(plot, date) %>% 
   reframe(par = mean(par, na.rm = T)) %>% 
   mutate(month = month(date),
-         year = year(date))
+         year = year(date)) %>% 
+  group_by(date, month, year) %>% 
+  mutate(par = scale(par)) %>% 
+  ungroup()
 
 soil_moisture <- read.csv(here("data", "clean_data", "soil_moisture_clean.csv")) %>% 
   select(!X) %>%
   group_by(plot, date) %>% 
   reframe(soil_moisture = mean(soil_moisture, na.rm = T)) %>% 
   mutate(month = month(date),
-         year = year(date))
+         year = year(date)) %>% 
+  drop_na() %>% 
+  group_by(date, month, year) %>% 
+  mutate(soil_moisture = scale(soil_moisture)) %>% 
+  ungroup()
 
-survival_environmental <- survival_data %>% 
+survival_environmental <- survival_density %>% 
   left_join(par, by = c("plot", "month", "year")) %>% 
   left_join(soil_moisture, by = c("plot", "month", "year")) %>% 
   mutate(community = as.factor(community)) %>% 
-  left_join(survival_sum, by = c("plot", "start_date")) %>% 
-  mutate(plants_alive = case_when(community %in% c(1,2) & start_time == 0 ~ 54,
-                                  TRUE ~ plants_alive),
-         plants_alive = replace_na(plants_alive, 0))
+  filter(end_time < 365)
 
-survival_environmental$community <- factor(survival_environmental$community, levels = c(3,2,1))
+plant_traits <- read.csv(here("data", "clean_data", "analysis_traits.csv")) %>% 
+  mutate(wood_density = scale(wood_density),
+         wue = scale(wue))
 
-survival_environmental_chap <- survival_environmental %>%  
-  filter(species %in% c("rhov", "adfa", "mala", "cecu", "ceol", "rhil", "hear")) %>% 
-  mutate(chap_type = case_when(species %in% c("rhov", "mala", "adfa") ~ "facultive",
-                               species %in% c("cecu", "ceol", "rhil", "hear") ~ "obligate"),
-         chap_type2 = case_when(species %in% c("cecu", "ceol") ~ "obligate_seeder",
-                               species %in% c("rhil", "hear") ~ "obligate_sprouter"))
-
+survival_environmental_traits <- survival_density %>% 
+  left_join(par, by = c("plot", "month", "year")) %>% 
+  left_join(soil_moisture, by = c("plot", "month", "year")) %>% 
+  left_join(plant_traits, by = "species") %>% 
+  mutate(community = as.factor(community)) %>%
+  filter(end_time < 365)
 ```
 
-Facilitation for facultive sprouters until early augst
-
 ```{r}
-coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survival_environmental_chap %>%  filter(chap_type == "facultive" & end_time < 204)) %>% tbl_regression(exp = T) ## 204 is through 8-5-2022
-coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survival_environmental_chap %>%  filter(chap_type == "facultive" & end_time > 204)) %>%  tbl_regression(exp = T)
-```
+carla_input <- survival_density %>% 
+  group_by(plot, id) %>% 
+  filter(end_time == max(end_time)) %>% 
+  ungroup() %>% 
+  mutate(density = plants_alive/25, 
+         alive = case_when(dead == 1 ~ 0,
+                           dead == 0 ~ 1),
+         community_type = case_when(community_type == "sage" ~ "sage scrub",
+                                    community_type == "chap" ~ "chaparral"))
+summary(glmer(alive~density + (1|plot), family = "binomial", data = carla_input %>% filter(community_type == "sage")))
+summary(glmer(alive~density + (1|plot), family = "binomial", data = carla_input %>% filter(community_type == "chap")))
 
-No Facilitation for obligate species
-```{r}
-coxph(Surv(start_time, end_time, dead) ~ community, id = unique_id, data = survival_environmental_chap %>%  filter(chap_type == "obligate")) %>% 
-  tbl_regression(exp = T)
-```
 
-Similarly, facilitation for all chaparral when looking at number of plants, but only until early august
-```{r}
-coxph(Surv(start_time, end_time, dead) ~ plants_alive, id = unique_id, data = survival_environmental_chap %>%  filter(end_time < 204)) %>%
-  tbl_regression(exp =T)
-
-coxph(Surv(start_time, end_time, dead) ~ plants_alive, id = unique_id, data = survival_environmental_chap %>%  filter(end_time > 204)) %>% 
-  tbl_regression(exp = T)
-```
-
-Now showing facilitation seperated by chaparral type as a function of number of plants
-```{r}
-coxph(Surv(start_time, end_time, dead) ~ plants_alive + chap_type, id = unique_id, data = survival_environmental_chap %>% filter(end_time < 204)) %>% tbl_regression(exp = T)
-
-coxph(Surv(start_time, end_time, dead) ~ plants_alive + chap_type, id = unique_id, data = survival_environmental_chap %>% filter(end_time > 204)) %>% tbl_regression(exp = T)
-
-```
-
-And Visualizing the above facilitation table
-
-```{r}
-facilitation_model <- coxph(Surv(start_time, end_time, dead) ~ plants_alive + chap_type, id = unique_id, data = survival_environmental_chap %>% filter(end_time < 204))
-
-facilitation_data <- expand.grid(plants_alive = seq(from = 0, to = 54, by = 1),
-                                 chap_type = c("obligate", "facultive")) %>% 
-  mutate(start_time = 0, 
-         end_time = 204,
-         dead = 0) %>% 
-  mutate(surv_prob = predict(facilitation_model, newdata = ., type = "survival") * 100,
-         interval = predict(facilitation_model, newdata = ., type = "survival", se.fit = T, interval = "confidence")[[2]] * 100,
-         upper = surv_prob + interval,
-         lower = surv_prob - interval)
-
-ggplot(facilitation_data, aes(x = plants_alive, y = surv_prob, col = chap_type))+
-  geom_line()+
-  geom_ribbon(aes(ymin =lower, ymax = upper), alpha = 0.5)+
+carla_plot <- ggplot(carla_input, aes(x= density, y = alive, col = community_type))+
+  geom_point()+
+  scale_color_manual(values = c("#548235", "#2E75B6")) + 
+  geom_smooth(method = "glm",
+              method.args = list("binomial"))+
   theme_classic()+
-  ylim(0,100)
+  labs(x = "Initial Density (plants/m2)",
+       y = "Alive",
+       col = "Vegetation \n Community")
+
+ggsave(filename = "carla_plot.png",
+       plot = carla_plot,
+       path = here("figures"),
+       width = 8,
+       height = 8,
+       units = "in")
 ```
 
-Showing how number of plants relates to soil moisture and par
+```{r}
+transplant_environment <- survival_sum %>% 
+  left_join(soil_moisture, by = "plot") %>% 
+  filter(month == 2) %>% 
+  left_join(par, by = c("plot", "month"))
+
+summary(glm(plants_alive~soil_moisture + par, family = "Gamma", data = transplant_environment))
+
+ggplot(soil_moisture, aes(x = date, y = soil_moisture, col = as.factor(plot), group = plot))+
+  geom_point()+
+  geom_line()
+
+summary(aov(soil_moisture~as.factor(plot), soil_moisture))
+
+ggplot(transplant_environment, aes(x = soil_moisture, y = plants_alive))+
+  geom_point()+
+  geom_smooth(method = "glm",
+              method.args = list("Gamma"))+
+  theme_classic()
+```
 
 ```{r}
-summary(glm(par~plants_alive, family = Gamma, data = survival_environmental %>% filter(end_time < 204 & par > 0.7)))
-summary(glm(soil_moisture~plants_alive, data = survival_environmental%>% filter(end_time < 204)))
+soil_moisture_wide <- soil_moisture %>% 
+  mutate(month = case_when(month == 2 ~"february",
+                           month == 4 ~ "april",
+                           month == 5 ~ "may",
+                           month == 6 ~ "june",
+                           month == 7 ~ "july",
+                           month == 9 ~ "september",
+                           month == 10 ~ "october",
+                           month == 11 ~ "november")) %>% 
+  filter(year == 2022) %>% 
+  select(plot, soil_moisture, month) %>% 
+  pivot_wider(names_from = month, values_from = soil_moisture)
 
-ggplot(survival_environmental%>% filter(end_time < 204 & par > 0.7), aes(x = plants_alive, y = par))+
-  geom_point(aes(col = start_time))+
-  geom_smooth(method = "glm",
-              method.args ="Gamma")+
-  theme_classic()
+summary(glm(april~february, data = soil_moisture_wide))
+summary(glm(may~february, data = soil_moisture_wide))
+summary(glm(june~february, data = soil_moisture_wide))
+summary(glm(july~february, data = soil_moisture_wide))
+summary(glm(september~february, data = soil_moisture_wide))
+summary(glm(october~february, data = soil_moisture_wide))
+summary(glm(november~february, data = soil_moisture_wide))
 
-ggplot(survival_environmental%>% filter(end_time < 204), aes(x = plants_alive, y = soil_moisture))+
+
+```
+
+
+
+
+```{r}
+cox_all <- coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_density %>% filter(dead == 1 |end_date == "2022-11-21") %>% mutate(start_time = 0)) %>%  tbl_regression(exp = T)
+
+cox_all_estimates <- data_frame("group" = "whole plot", 
+                                "hazard_ratio" = cox_all$table_body$estimate, 
+                                "lower" = cox_all$table_body$conf.low, 
+                                "upper" = cox_all$table_body$conf.high,
+                                "pvalue" = round(cox_all$table_body$p.value, digits = 3))
+
+cox_sage <- coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_density %>% filter(community_type == "sage") %>% 
+        filter(dead == 1 |end_date == "2022-11-21") %>%  mutate(start_time = 0)) %>% tbl_regression(exp = T)
+
+cox_sage_estimates <- data_frame("group" = "sage scrub", 
+                                "hazard_ratio" = cox_sage$table_body$estimate, 
+                                "lower" = cox_sage$table_body$conf.low, 
+                                "upper" = cox_sage$table_body$conf.high,
+                                "pvalue" = round(cox_sage$table_body$p.value, digits = 3))
+
+cox_chap <- coxme(Surv(start_time, end_time, dead) ~ plants_alive + (1|plot), data = survival_density %>% filter(community_type == "chap") %>% 
+        filter(dead == 1 |end_date == "2022-11-21") %>% mutate(start_time = 0)) %>% tbl_regression(exp = T)
+
+cox_chap_estimates <- data_frame("group" = "chaparral", 
+                                "hazard_ratio" = cox_chap$table_body$estimate, 
+                                "lower" = cox_chap$table_body$conf.low, 
+                                "upper" = cox_chap$table_body$conf.high,
+                                "pvalue" = round(cox_chap$table_body$p.value, digits = 3))
+density_estimates <- rbind(cox_all_estimates, cox_sage_estimates, cox_chap_estimates)
+
+figure_2 <- ggplot(density_estimates, aes(x = hazard_ratio, y = group)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 1.05, label = paste("p =", pvalue)))+
+  theme_classic() +
+  labs(x = "Hazard Ratio",
+       y = "") +
+  xlim(0.85, 1.1)
+
+ggsave(filename = "figure2.png", plot = figure_2, path = here("figures"), width = 4, height = 4, units = "in")
+
+```
+
+
+```{r}
+cox_enviro_all <- coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + par:end_time + (1|plot),
+              data = survival_environmental) %>% 
+  tbl_regression(exp = T)
+
+cox_enviro_all_estimates <- data_frame("group" = "whole plot",
+                                         "variable" = cox_enviro_all$table_body$label,
+                                         "hazard_ratio" = cox_enviro_all$table_body$estimate,
+                                         "lower" = cox_enviro_all$table_body$conf.low,
+                                         "upper" = cox_enviro_all$table_body$conf.high,
+                                         "pvalue" = round(cox_enviro_all$table_body$p.value, digits = 3)) %>% 
+  mutate(variable = case_when(variable == "soil_moisture" ~ "Soil moisture",
+                              variable == "plants_alive" ~ "April density",
+                              variable == "par * end_time" ~ "PAR * time",
+                              variable == "par" ~ "PAR"))
+
+
+cox_enviro_sage <- coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + par:end_time + (1|plot), 
+                         data = survival_environmental %>% filter(community_type == "sage")) %>% tbl_regression(exp = T)
+
+cox_enviro_sage_estimates <- data_frame("group" = "sage scrub",
+                                         "hazard_ratio" = cox_enviro_sage$table_body$estimate,
+                                        "variable" = cox_enviro_sage$table_body$label,
+                                         "lower" = cox_enviro_sage$table_body$conf.low,
+                                         "upper" = cox_enviro_sage$table_body$conf.high,
+                                         "pvalue" = round(cox_enviro_sage$table_body$p.value, digits = 3)) %>% 
+  mutate(variable = case_when(variable == "soil_moisture" ~ "Soil moisture",
+                              variable == "plants_alive" ~ "April density",
+                              variable == "par * end_time" ~ "PAR * time",
+                              variable == "par" ~ "PAR"))
+
+cox_enviro_chap <- coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + par:end_time + (1|plot),
+                         data = survival_environmental %>% filter(community_type == "chap")) %>% 
+  tbl_regression(exp = T)
+
+cox_enviro_chap_estimates <- data_frame("group" = "chaparral",
+                                         "hazard_ratio" = cox_enviro_chap$table_body$estimate,
+                                        "variable" = cox_enviro_chap$table_body$label,
+                                         "lower" = cox_enviro_chap$table_body$conf.low,
+                                         "upper" = cox_enviro_chap$table_body$conf.high,
+                                         "pvalue" = round(cox_enviro_chap$table_body$p.value, digits = 3)) %>% 
+  mutate(variable = case_when(variable == "soil_moisture" ~ "Soil moisture",
+                              variable == "plants_alive" ~ "April density",
+                              variable == "par * end_time" ~ "PAR * time",
+                              variable == "par" ~ "PAR"))
+
+plot_graph <- ggplot(cox_enviro_all_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 1.5, y = "Soil moisture", label = paste("p =", pvalue[1])))+
+  geom_text(aes(x = 1.3, y = "April density", label = "p<0.01"))+
+  geom_text(aes(x = 1.3, y = "PAR * time", label = "p<0.01"))+
+  geom_text(aes(x = 1.3, y = "PAR", label = "p<0.01"))+
+  theme_classic() +
+  labs(x = "Hazard Ratio", 
+       y = "",
+       title = "Whole Plot") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+sage_graph <- ggplot(cox_enviro_sage_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 2.5, y = "Soil moisture", label = paste("p =", pvalue[1])))+
+  geom_text(aes(x = 2, y = "April density", label = paste("p =", pvalue[2])))+
+  geom_text(aes(x = 2, y = "PAR * time", label = paste("p =", pvalue[3])))+
+  geom_text(aes(x = 0.4, y = "PAR", label = "p<0.01"), vjust = 0.5)+
+  theme_classic()+
+  theme_classic() +
+  labs(x = "Hazard Ratio", 
+       y = "",
+       title = "Sage Scrub") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+chap_graph <- ggplot(cox_enviro_chap_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 1.5, y = "Soil moisture", label = paste("p =", pvalue[1])))+
+  geom_text(aes(x = 1.2, y = "April density", label = "p<0.01"))+
+  geom_text(aes(x = 1.2, y = "PAR * time", label = paste("p =", pvalue[3])))+
+  geom_text(aes(x = 0.75, y = "PAR", label = paste("p =", pvalue[2])))+
+  theme_classic()+
+  theme_classic() +
+  labs(x = "Hazard Ratio", 
+       y = "",
+       title = "Chaparral") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+figure_3 <- plot_graph/sage_graph/chap_graph + plot_annotation(tag_levels = "A")
+figure_3
+
+ggsave("figure3.png", figure_3, path = here("figures"), width = 8, height = 8, units = "in")
+```
+
+```{r}
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_1 + (1|plot),
+                         data = survival_environmental_traits))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_1 + (1|plot),
+                         data = survival_environmental_traits)))
+
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_2 + (1|plot),
+                         data = survival_environmental_traits))
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*wood_density + (1|plot),
+                         data = survival_environmental_traits))
+cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*wue + (1|plot),
+                         data = survival_environmental_traits))
+plot(cox.zph(coxme(Surv(start_time, end_time, dead) ~ plants_alive*wue + (1|plot),
+                         data = survival_environmental_traits)))
+
+les1_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_1 + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+les2_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*les_2 + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+wood_density_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*wood_density + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+wue_model <- coxme(Surv(start_time, end_time, dead) ~ plants_alive*wue + (1|plot),
+                         data = survival_environmental_traits) %>% tbl_regression(exp = T)
+
+les1_estimates <- data_frame("hazard_ratio" = les1_model$table_body$estimate,
+                             "variable" = les1_model$table_body$label,
+                             "lower" = les1_model$table_body$conf.low,
+                             "upper" = les1_model$table_body$conf.high,
+                             "pvalue" = round(les1_model$table_body$p.value, digits = 3)) %>% 
+  mutate(variable = case_when(variable == "plants_alive * les_1" ~ "LES 1 *  \n April density",
+                              variable == "plants_alive" ~ "April density",
+                              variable == "les_1" ~ "LES 1"))
+
+les2_estimates <- data_frame("hazard_ratio" = les2_model$table_body$estimate,
+                             "variable" = les2_model$table_body$label,
+                             "lower" = les2_model$table_body$conf.low,
+                             "upper" = les2_model$table_body$conf.high,
+                             "pvalue" = round(les2_model$table_body$p.value, digits = 3)) %>% 
+  mutate(variable = case_when(variable == "plants_alive * les_2" ~ "LES 2 * \n April density",
+                              variable == "plants_alive" ~ "April density",
+                              variable == "les_2" ~ "LES 2"))
+
+wood_density_estimates <- data_frame("hazard_ratio" = wood_density_model$table_body$estimate,
+                             "variable" = wood_density_model$table_body$label,
+                             "lower" = wood_density_model$table_body$conf.low,
+                             "upper" = wood_density_model$table_body$conf.high,
+                             "pvalue" = round(wood_density_model$table_body$p.value, digits = 3)) %>% 
+  mutate(variable = case_when(variable == "plants_alive * wood_density" ~ "Wood density * \n April density",
+                              variable == "plants_alive" ~ "April density",
+                              variable == "wood_density" ~ "Wood density"))
+
+wue_estimates <- data_frame("hazard_ratio" = wue_model$table_body$estimate,
+                             "variable" = wue_model$table_body$label,
+                             "lower" = wue_model$table_body$conf.low,
+                             "upper" = wue_model$table_body$conf.high,
+                             "pvalue" = round(wue_model$table_body$p.value, digits = 3)) %>% 
+  mutate(variable = case_when(variable == "plants_alive * wue" ~ "Water use efficiency * \n April density",
+                              variable == "plants_alive" ~ "April density",
+                              variable == "wue" ~ "Water use efficiency"))
+
+les1_graph <- ggplot(les1_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0.3, label = "p<0.01"))+
+  theme_classic() +
+  labs(x = "Hazard Ratio",
+       y = "") +
+  xlim(0, 3.5)+
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15))
+
+les2_graph <- ggplot(les2_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 2, label = paste("p =", pvalue)), vjust = -1)+
+  theme_classic() +
+  labs(x = "Hazard Ratio",
+       y = "") +
+  xlim(0, 3)+
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15))
+  
+
+wood_density_graph <- ggplot(wood_density_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 3, y = "Wood density * \n April density", label = paste("p =", pvalue[1])))+
+  geom_text(aes(x = 3, y = "Wood density", label = paste("p =", pvalue[2])), vjust = -1)+
+  geom_text(aes(x = 3, y = "April density", label = paste("p > 0.01")))+
+  theme_classic() +
+  labs(x = "Hazard Ratio",
+       y = "") +
+  xlim(0, 5.5)+
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15))
+
+wue_graph <- ggplot(wue_estimates, aes(x = hazard_ratio, y = variable)) +
+  geom_point()+
+  geom_errorbar(aes(xmin = lower, xmax = upper))+
+  geom_vline(xintercept = 1, linetype = "dashed")+
+  geom_text(aes(x = 0.7, y = "Water use efficiency", label = "p<0.01"))+
+  geom_text(aes(x = 0.7, y = "Water use efficiency * \n April density", label = "p<0.01"))+
+  geom_text(aes(x = 0.7, y = "April density", label = "p<0.01"))+
+  theme_classic() +
+  labs(x = "Hazard Ratio",
+       y = "") +
+  xlim(0,1.05)+
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15))
+
+figure_4 <- (les1_graph + les2_graph)/(wood_density_graph + wue_graph) + plot_annotation(tag_levels = "A")
+
+ggsave("figure4.png", figure_4, path = here("figures"), width = 8, height = 8, units = "in")
+```
+
+```{r}
+par_early <- par %>% 
+  filter(date %in% c("2022-02-17", "2022-04-05")) %>% 
+  select(plot, date, par)
+soil_moisture_early <- soil_moisture %>% 
+  filter(date %in% c("2022-02-17", "2022-04-05")) %>% 
+  select(plot, date, soil_moisture)
+
+density_early <- par_early %>% 
+  inner_join(soil_moisture_early, by = c("plot", "date")) %>% 
+  inner_join(survival_sum, by = "plot")
+
+summary(glm(plants_alive~par, data = density_early %>% filter(date == "2022-02-17")))
+summary(glm(plants_alive~par, data = density_early %>% filter(date == "2022-04-05")))
+
+summary(glm(plants_alive~soil_moisture, data = density_early %>% filter(date == "2022-02-17")))
+summary(glm(plants_alive~soil_moisture, data = density_early %>% filter(date == "2022-04-05")))
+
+summary(glm(plants_alive~par + soil_moisture, data = density_early))
+summary(glm(plants_alive~par + soil_moisture, data = density_early %>% filter(date == "2022-04-05")))
+
+ggplot(density_early %>% filter(date == "2022-02-17"), aes(x = soil_moisture, y = plants_alive))+
   geom_point()+
   geom_smooth(method = "glm")+
   theme_classic()
 
-summary(glm(par~plants_alive, family = Gamma, data = survival_environmental %>% filter(end_time < 204 & community != 3)))
-summary(glm(soil_moisture~plants_alive, data = survival_environmental%>% filter(end_time < 204 & community != 3)))
-
-ggplot(survival_environmental%>% filter(end_time < 204 & community != 3), aes(x = plants_alive, y = par))+
-  geom_point(aes(col = start_time))+
-  geom_smooth(method = "glm",
-              method.args ="Gamma")+
-  theme_classic()
-
-ggplot(survival_environmental%>% filter(end_time < 204 & community != 3), aes(x = plants_alive, y = soil_moisture))+
-  geom_point()+
-  geom_smooth(method = "glm")+
-  theme_classic()
 ```
-
-Now looking at survival including environmental variables with number of sage and chaparral type
-
 ```{r}
-survival_environmental_chap_narrow <- survival_environmental_chap %>% filter(date.y != "2022-06-09") ##getting rid of june 2022 soil moisture, because it is funky and not believable. 
 
-august_survival_environmental_chap <- survival_environmental_chap_narrow %>% 
-  filter(end_time < 204) 
-coxph(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive * chap_type, 
-              id = unique_id, 
-              data = august_survival_environmental_chap) %>% 
-  tbl_regression(exp = T)
-
-
-coxph(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive * chap_type, 
-              id = unique_id, 
-              data = survival_environmental_chap_narrow %>% filter(end_time >204)) %>% 
-  tbl_regression(exp = T)
-```
-
-Visualizing above augst model
-
-```{r}
-full_august_model <- coxph(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive * chap_type, 
-              id = unique_id, 
-              data = august_survival_environmental_chap)
-
-august_full_enviro_data_soil_moisture <- expand.grid("soil_moisture" = seq(from = min(august_survival_environmental_chap$soil_moisture, 
-                                                                                      na.rm = T), 
-                                                                           to = max(august_survival_environmental_chap$soil_moisture, 
-                                                                                    na.rm = T), 
-                                                                           by = 0.5),
-                                                     "chap_type" = c("facultive", "obligate")) %>% 
-  mutate(start_time = 0, 
-         end_time = 203,
-         dead = 0,
-         par = median(august_survival_environmental_chap$par, na.rm = T),
-         plants_alive = median(august_survival_environmental_chap$plants_alive)) %>% 
-  mutate(prop_alive = predict(full_august_model, newdata = ., type = "surv") *100,
-         interval = predict(full_august_model, newdata = ., type = "surv", se.fit = T, interval = "confidence")[[2]]*100,
-         upper = prop_alive + interval,
-         lower = prop_alive - interval)
-
-ggplot(august_full_enviro_data_soil_moisture, aes(x = soil_moisture, y = prop_alive, col = chap_type))+
-  geom_line()+
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5)+
-  theme_classic()
-
-august_full_enviro_data_par <- expand.grid("par" = seq(from = min(august_survival_environmental_chap$par, na.rm = T), 
-                                                                           to = max(august_survival_environmental_chap$par, na.rm = T), 
-                                                                           by = 0.01),
-                                                     "chap_type" = c("facultive", "obligate")) %>% 
-  mutate(start_time = 0, 
-         end_time = 203,
-         dead = 0,
-         soil_moisture = median(august_survival_environmental_chap$soil_moisture, na.rm = T),
-         plants_alive = median(august_survival_environmental_chap$plants_alive)) %>% 
-  mutate(prop_alive = predict(full_august_model, newdata = ., type = "surv") *100,
-         interval = predict(full_august_model, newdata = ., type = "surv", se.fit = T, interval = "confidence")[[2]]*100,
-         upper = prop_alive + interval,
-         lower = prop_alive - interval)
-
-ggplot(august_full_enviro_data_par, aes(x = par, y = prop_alive, col = chap_type))+
-  geom_line()+
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5)+
-  theme_classic() 
-
-august_full_enviro_data_plants <- expand.grid("plants_alive" = seq(from = min(august_survival_environmental_chap$plants_alive, na.rm = T), 
-                                                                           to = max(august_survival_environmental_chap$plants_alive, na.rm = T), 
-                                                                           by = 1),
-                                                     "chap_type" = c("facultive", "obligate")) %>% 
-  mutate(start_time = 0, 
-         end_time = 203,
-         dead = 0,
-         soil_moisture = median(august_survival_environmental_chap$soil_moisture, na.rm = T),
-         par = median(august_survival_environmental_chap$par, na.rm = T)) %>% 
-  mutate(prop_alive = predict(full_august_model, newdata = ., type = "surv") *100,
-         interval = predict(full_august_model, newdata = ., type = "surv", se.fit = T, interval = "confidence")[[2]]*100,
-         upper = prop_alive + interval,
-         lower = prop_alive - interval)
-
-ggplot(august_full_enviro_data_plants, aes(x = plants_alive, y = prop_alive, col = chap_type))+
-  geom_line()+
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5)+
-  theme_classic() 
-```
-
-Visualizing above late summer model
-
-```{r}
-late_summer_chap <- survival_environmental_chap %>% filter(end_time > 204)
-
-late_summer_full_model <- coxph(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive * chap_type, 
-              id = unique_id, 
-              data = late_summer_chap)
-
-late_summer_full_enviro_data_soil_moisture <- expand.grid("soil_moisture" = seq(from = min(late_summer_chap$soil_moisture, 
-                                                                                           na.rm = T),
-                                                                                to = max(late_summer_chap$soil_moisture,
-                                                                                         na.rm = T),
-                                                                                by = 0.5),
-                                                     "chap_type" = c("facultive", "obligate")) %>% 
-  mutate(start_time = 0, 
-         end_time = 419,
-         dead = 0,
-         par = median(late_summer_chap$par, na.rm = T),
-         plants_alive = median(late_summer_chap$plants_alive)) %>% 
-  mutate(prop_alive = predict(late_summer_full_model, newdata = ., type = "surv") *100,
-         interval = predict(late_summer_full_model, newdata = ., type = "surv", se.fit = T, interval = "confidence")[[2]]*100,
-         upper = prop_alive + interval,
-         lower = prop_alive - interval)
-
-ggplot(late_summer_full_enviro_data_soil_moisture, aes(x = soil_moisture, y = prop_alive, col = chap_type))+
-  geom_line()+
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5)+
-  theme_classic()
-
-late_summer_full_enviro_data_par <- expand.grid("par" = seq(from = 0.6, 
-                                                                           to = max(late_summer_chap$par, na.rm = T), 
-                                                                           by = 0.01),
-                                                     "chap_type" = c("facultive", "obligate")) %>% 
-  mutate(start_time = 0, 
-         end_time = 419,
-         dead = 0,
-         soil_moisture = median(late_summer_chap$soil_moisture, na.rm = T),
-         plants_alive = median(late_summer_chap$plants_alive)) %>% 
-  mutate(prop_alive = predict(late_summer_full_model, newdata = ., type = "surv") *100,
-         interval = predict(late_summer_full_model, newdata = ., type = "surv", se.fit = T, interval = "confidence")[[2]]*100,
-         upper = prop_alive + interval,
-         lower = prop_alive - interval)
-
-ggplot(late_summer_full_enviro_data_par, aes(x = par, y = prop_alive, col = chap_type))+
-  geom_line()+
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5)+
-  theme_classic() 
-
-late_summer_full_enviro_data_plants <- expand.grid("plants_alive" = seq(from = min(late_summer_chap$plants_alive, na.rm = T), 
-                                                                           to = max(late_summer_chap$plants_alive, na.rm = T), 
-                                                                           by = 1),
-                                                     "chap_type" = c("facultive", "obligate")) %>% 
-  mutate(start_time = 0, 
-         end_time = 419,
-         dead = 0,
-         soil_moisture = median(late_summer_chap$soil_moisture, na.rm = T),
-         par = median(late_summer_chap$par, na.rm = T)) %>% 
-  mutate(prop_alive = predict(late_summer_full_model, newdata = ., type = "surv") *100,
-         interval = predict(late_summer_full_model, newdata = ., type = "surv", se.fit = T, interval = "confidence")[[2]]*100,
-         upper = prop_alive + interval,
-         lower = prop_alive - interval)
-
-ggplot(late_summer_full_enviro_data_plants, aes(x = plants_alive, y = prop_alive, col = chap_type))+
-  geom_line()+
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.5)+
-  theme_classic() 
 ```
 

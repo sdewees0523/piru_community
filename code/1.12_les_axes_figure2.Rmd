@@ -1,0 +1,76 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-02-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+```
+
+```{r}
+plant_traits <- read.csv(here("data", "clean_data", "chaparral_traits_clean.csv")) 
+
+leaf_traits <- plant_traits %>% 
+  select(!X & !wood_density & !wue)
+
+leaf_traits_pca_input <- leaf_traits %>% 
+  column_to_rownames(var = "species")
+
+leaf_traits_pca <- leaf_traits_pca_input %>% 
+  prcomp(center = TRUE, scale. = TRUE)
+summary(leaf_traits_pca)
+
+leaf_traits_prop_var <- leaf_traits_pca$sdev^2 / sum(leaf_traits_pca$sdev^2)
+leaf_traits_scores <- as.data.frame(leaf_traits_pca$x)
+leaf_traits_scores$species <- leaf_traits$species
+leaf_traits_loadings <- as.data.frame(leaf_traits_pca$rotation) %>% 
+  mutate(traits = rownames(.),
+         traits = case_when(traits == "petiole_length" ~ "petiole length",
+                            traits == "leaf_thickness" ~ "leaf thickness",
+                            traits == "leaf_c_n" ~ "leaf carbon:nitrogen",
+                            traits == "leaf_n_percentage" ~ "leaf nitrogen",
+                            traits == "leaf_c_percentage" ~ "leaf carbon",
+                            traits == "leaf_lamina_length" ~ "leaf lamina length",
+                            traits == "leaf_width" ~ "leaf width",
+                            TRUE ~ traits))
+
+figure_2 <- ggplot() +
+  geom_point(data = leaf_traits_scores, aes(x = PC1, y = PC2))+
+  geom_text(data = leaf_traits_scores, aes(x = PC1, y = PC2, label = species), color = "darkgrey",
+            hjust = c(0.5,0.5,0.5,0.5,1.2,0.5,-0.2,0.5,0.5,0.5,0.5,-0.4,-0.4),
+            vjust = c(-0.5,-0.5,-0.5,1,0,-0.5,-0.25,-0.5,1.1,-0.5,-0.5,0.25,0.25))+
+  geom_segment(data = leaf_traits_loadings, aes( x = 0, y = 0, xend = PC1*5, yend = PC2*5),
+               arrow = arrow(length = unit (0.3, "cm"), type = "open", angle = 25),
+               size = 1, color = "black")+
+  geom_text(data = leaf_traits_loadings, aes(x = PC1*5, y = PC2*5, label = traits),
+            hjust = c(-0.25,0.5,1,1.05,-0.05,0.5,1.15,-0.1,1.1), 
+            vjust = c(-0.25,1,1,0,0,-1,0,0,0))+
+  theme_classic()+
+  labs(x= "PC1 (58%)",
+       y = "PC2 (23%)")
+
+
+ggsave(filename = "figure2.png",
+       plot = figure_2,
+       path = here("figures"),
+       width = 4,
+       height = 4,
+       units = "in",
+       dpi = 325,
+       scale = 2)
+```
+
+```{r}
+new_traits <- leaf_traits_scores %>% 
+  select(species, PC1, PC2) %>% 
+  rename(les_1 = PC1, 
+         les_2 = PC2) %>% 
+  left_join(plant_traits, by = "species") %>% 
+  select(species, les_1, les_2, wood_density, wue)
+
+write.csv(new_traits, here("data", "clean_data", "analysis_traits.csv"), row.names = F)
+```
+

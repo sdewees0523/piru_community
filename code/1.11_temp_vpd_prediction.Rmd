@@ -1,0 +1,117 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-01-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(tidyverse)
+library(lubridate)
+library(raster)
+library(stars)
+library(sf)
+library(randomForest)
+```
+
+```{r}
+dates <- expand.grid(plot = c(2460,2403,2402,2404,2461,2458,2462,2401,2459,2405,11,12,13,14,15),
+                     date = seq(ymd("2022-01-01"), ymd("2022-12-31"), by = "days"))
+
+plots <- st_read(here("data", "raw_data", "plots", "plots.shp")) %>%
+  dplyr::select(plot, geometry) %>% 
+  st_as_sf()
+
+elevation <- read_stars(here("data", "raw_data", "spatial_data", "elevation")) %>% 
+  st_warp(crs = crs(plots))
+aspect <- read_stars(here("data", "raw_data", "spatial_data", "aspect")) %>% 
+  st_warp(crs = crs(plots))
+aspect <- cos((aspect * pi/180) - (225 * pi/180))
+slope <-  read_stars(here("data", "raw_data", "spatial_data", "slope")) %>% 
+  st_warp(crs = crs(plots))
+summer_solar_radiation <-  read_stars(here("data", "raw_data", "spatial_data", "summer_sol")) %>% 
+  st_warp(crs = crs(plots))
+spring_solar_radiation  <-  read_stars(here("data", "raw_data", "spatial_data", "spring_sol")) %>% 
+  st_warp(crs = crs(plots))
+winter_solar_radiation <-  read_stars(here("data", "raw_data", "spatial_data", "winter_sol")) %>% 
+  st_warp(crs = crs(plots))
+heat_load <-  read_stars(here("data", "raw_data", "spatial_data", "heat_load")) %>% 
+  st_warp(crs = crs(plots)) 
+diurnal_heat <-  read_stars(here("data", "raw_data", "spatial_data", "diurnal_heat")) %>% 
+  st_warp(crs = crs(plots))
+topo_position  <-  read_stars(here("data", "raw_data", "spatial_data", "top_position")) %>% 
+  st_warp(crs = crs(plots))
+sol_rad_aspect  <-  read_stars(here("data", "raw_data", "spatial_data", "sol_rad_asp")) %>% 
+  st_warp(crs = crs(plots))
+terrain_ruggedness  <-  read_stars(here("data", "raw_data", "spatial_data", "ruggedness")) %>% 
+  st_warp(crs = crs(plots))
+saga_wetness <-  read_stars(here("data", "raw_data", "spatial_data", "saga_wetness")) %>% 
+  st_warp(crs = crs(plots))
+twi <-  read_stars(here("data", "raw_data", "spatial_data", "twi")) %>% 
+  st_warp(crs = crs(plots))
+
+elevation_sf <- aggregate(elevation, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+aspect_sf <- aggregate(aspect, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+slope_sf <- aggregate(slope, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+summer_solar_radiation_sf <- aggregate(summer_solar_radiation, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+spring_solar_radiation_sf <- aggregate(spring_solar_radiation, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+winter_solar_radiation_sf <- aggregate(winter_solar_radiation, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+heat_load_sf <- aggregate(heat_load, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+diurnal_heat_sf <- aggregate(diurnal_heat, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+topo_position_sf <- aggregate(topo_position, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+sol_rad_aspect_sf <- aggregate(sol_rad_aspect, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+terrain_ruggedness_sf <- aggregate(terrain_ruggedness, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+saga_wetness_sf <- aggregate(saga_wetness, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+twi_sf <- aggregate(twi, plots, mean, na.rm = T) %>% 
+  st_as_sf()
+  
+weather_station <- read.csv(here("data", "raw_data", "weather_station_temp.csv")) %>% 
+  mutate(date = mdy(paste(Month, Date, Year, sep = "-")))
+
+plots_dates <- plots %>% 
+  st_join(elevation_sf) %>% 
+  st_join(aspect_sf) %>% 
+  st_join(slope_sf) %>% 
+  st_join(summer_solar_radiation_sf) %>% 
+  st_join(spring_solar_radiation_sf) %>% 
+  st_join(winter_solar_radiation_sf) %>% 
+  st_join(heat_load_sf) %>% 
+  st_join(diurnal_heat_sf) %>%
+  st_join(topo_position_sf) %>% 
+  st_join(sol_rad_aspect_sf) %>% 
+  st_join(terrain_ruggedness_sf) %>% 
+  st_join(saga_wetness_sf) %>% 
+  st_join(twi_sf) %>% 
+  left_join(dates, by = "plot") %>% 
+  left_join(weather_station, by = "date") %>% 
+  st_drop_geometry()
+
+load(here("data", "models", "temp_rf.rds"))
+load(here("data", "models", "vpd_rf.rds"))
+plot_temp <- plots_dates %>% 
+  rename(max_temp = Temp,
+         summer_solar_radiation = summer_sol,
+         spring_solar_radiation = spring_sol,
+         winter_solar_radiation = winter_sol,
+         topo_position = top_position,
+         sol_rad_aspect = sol_rad_asp,
+         terrain_ruggedness = ruggedness) %>% 
+  mutate(temperature = predict(temp_rf, newdata = .),
+         vpd = predict(vpd_rf, newdata = .)) %>% 
+  dplyr::select(plot, date, temperature, vpd)
+write.csv(plot_temp, here("data", "clean_data", "temp_vpd_predicted.csv"))
+```
+
