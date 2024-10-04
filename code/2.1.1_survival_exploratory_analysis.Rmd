@@ -113,9 +113,13 @@ survival_environmental <- survival_density %>%
 ## General Survival Figures
 
 ```{r}
+<<<<<<< HEAD
 autoplot(survfit(Surv(start_time, end_time, dead) ~ community_type, id = unique_id, data = survival_data)) + ylim(0,1) +
   geom_vline(xintercept = 146) +
   geom_vline(xintercept = 203)
+=======
+autoplot(survfit(Surv(start_time, end_time, dead) ~ community_type, id = unique_id, data = survival_data)) + ylim(0,1)
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 
 autoplot(survfit(Surv(start_time, end_time, dead) ~ community + chap_type, id = unique_id, data = survival_environmental_chap))
 
@@ -214,6 +218,7 @@ coxme(Surv(start_time, end_time, dead) ~ soil_moisture + par + plants_alive + (1
 
 ```{r}
 soil_density <- soil_moisture %>% 
+<<<<<<< HEAD
   group_by(date) %>% 
   mutate(soil_moisture = scale(soil_moisture)) %>% 
   ungroup() %>% 
@@ -240,6 +245,28 @@ summary(glm(par ~ plants_alive, data = par_density %>% filter(date == "2022-07-1
 summary(glm(par~plants_alive, data = par_density %>% filter(date == "2022-08-05")))
 summary(glm(par ~ plants_alive, data = par_density %>% filter(date == "2022-09-08")))
 summary(glm(par ~ plants_alive, data = par_density %>% filter(date == "2022-10-19")))
+=======
+  left_join(species_sum, by = "plot")
+
+summary(glm(soil_moisture ~ simpsons, data = soil_density %>% filter(date == "2022-05-06")))
+summary(glm(soil_moisture ~ simpsons, data = soil_density %>% filter(date == "2022-06-09")))
+summary(glm(soil_moisture ~ simpsons, data = soil_density %>% filter(date == "2022-07-15")))
+summary(glm(soil_moisture ~ simpsons, data = soil_density %>% filter(date == "2022-09-08")))
+summary(glm(soil_moisture ~ simpsons, data = soil_density %>% filter(date == "2022-10-19")))
+summary(glm(soil_moisture ~ simpsons, data = soil_density %>% filter(date == "2022-11-21")))
+
+par_density <- par %>% 
+  left_join(species_sum, by = "plot") %>% 
+  mutate(par = as.numeric(par)) %>% 
+  drop_na()
+
+summary(glm(par ~ simpsons, data = par_density %>% filter(date == "2022-05-06")))
+summary(glm(par ~ simpsons, data = par_density %>% filter(date == "2022-06-09")))
+summary(glm(par ~ simpsons, data = par_density %>% filter(date == "2022-07-15")))
+summary(glm(par ~ simpsons, data = par_density %>% filter(date == "2022-09-08")))
+summary(glm(par ~ simpsons, data = par_density %>% filter(date == "2022-10-19")))
+summary(glm(par ~ simpsons, data = par_density %>% filter(date == "2022-11-21")))
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 ```
 
 ```{r}
@@ -248,7 +275,11 @@ soil_transplant <- soil_moisture %>%
   left_join(par, by = c("plot", "date")) %>% 
   left_join(species_sum, by = "plot")
 
+<<<<<<< HEAD
 summary(lm(plants_alive ~ soil_moisture, data = soil_transplant))
+=======
+summary(lm(simpsons ~ soil_moisture, data = soil_transplant))
+>>>>>>> 8782b0b8e2a1e7c27dac0a6767089b0791bd066f
 
 ggplot(soil_transplant, aes(x = soil_moisture, y = simpsons))+
   geom_point()+ 
