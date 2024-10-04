@@ -54,6 +54,35 @@ max_vpd <- vpd %>%
   mutate(month = month(date)) %>% 
   group_by(plot, rep, month) %>% 
   reframe(vpd = mean(vpd))
+
+temperature_n <- max_temperature %>% 
+  mutate(month = case_when(month == 3 ~ "march",
+                           month == 4 ~ "april",
+                           month == 5 ~ "may",
+                           month == 6 ~ "june",
+                           month == 7 ~ "july",
+                           month == 8 ~ "august",
+                           month == 9 ~ "september"),
+         month = factor(month, levels = c("march", "april", "may", "june", "july", "august", "september"))) %>% 
+  group_by(plot, month) %>% 
+  reframe(sensors = n()) %>% 
+  pivot_wider(id_cols = plot, names_from = month, values_from = sensors)
+
+vpd_n <- max_vpd %>% 
+  mutate(month = case_when(month == 3 ~ "march",
+                           month == 4 ~ "april",
+                           month == 5 ~ "may",
+                           month == 6 ~ "june",
+                           month == 7 ~ "july",
+                           month == 8 ~ "august",
+                           month == 9 ~ "september"),
+         month = factor(month, levels = c("march", "april", "may", "june", "july", "august", "september"))) %>% 
+  group_by(plot, month) %>% 
+  reframe(sensors = n()) %>% 
+  pivot_wider(id_cols = plot, names_from = month, values_from = sensors)
+
+write.csv(temperature_n, here("data", "clean_data", "temperature_n.csv"), row.names = F)
+write.csv(vpd_n, here("data", "clean_data", "vpd_n.csv"), row.names = F)
 ```
 
 
