@@ -30,6 +30,11 @@ percent_cover <- read.csv(here("data", "clean_data", "percent_cover_clean.csv"))
   
 natural_recruitment <- read.csv(here("data", "raw_data", "natural_recruitment.csv")) %>% 
   mutate(date = mdy(date)) %>% 
+  group_by(plot, date) %>% 
+  reframe(present = sum(present)) %>% 
+  mutate(present = case_when(present > 0 ~ 1,
+                             T ~ present),
+         present = as.factor(present)) %>% 
   left_join(percent_cover, by = c("plot", "date"))
 
 par <- read.csv(here("data", "clean_data", "par_clean.csv")) %>%  
@@ -92,7 +97,6 @@ figure_6b <- ggplot(natural_recruitment, aes(x = nonnative, y = present)) +
 ```{r}
 summary(glm(present~par, family = "binomial", data = natural_recruitment_enviro))
 summary(glm(present~soil_moisture , family = "binomial", data = natural_recruitment_enviro))
-summary(glm(present~par + native, family = "binomial", data = natural_recruitment_enviro))
 
 
 figure_6c <- ggplot(natural_recruitment_enviro, aes(x = par, y = present)) +
@@ -124,6 +128,36 @@ ggsave("figure_6.png",
 ```
 
 ```{r}
+temperature <- read.csv(here("data", "clean_data", "temperature.csv")) %>% 
+  dplyr::select(!X) %>% 
+  mutate(month = month(date))
+
+vpd <- read.csv(here("data", "clean_data", "vpd.csv")) %>% 
+  dplyr::select(!X) %>% 
+  mutate(month = month(date))
+
+max_temperature <- temperature %>% 
+  group_by(plot, rep, date) %>% 
+  reframe(temperature = max(temperature)) %>% 
+  mutate(month = month(date)) %>% 
+  filter(month == 9) %>% 
+  group_by(plot) %>% 
+  reframe(temperature = mean(temperature))
+
+max_vpd <- vpd %>% 
+  group_by(plot, rep, date) %>% 
+  reframe(vpd = max(vpd)) %>% 
+  mutate(month = month(date)) %>% 
+  filter(month == 9) %>% 
+  group_by(plot) %>% 
+  reframe(vpd = mean(vpd))
+
+natural_recruitment_ibutton <- natural_recruitment %>% 
+  left_join(max_temperature, by = "plot") %>% 
+  left_join(max_vpd, by = "plot")
+
+summary(glm(present~temperature, family = "binomial", data = natural_recruitment_ibutton))
+summary(glm(present~vpd, family = "binomial", data = natural_recruitment_ibutton))
 
 ```
 
