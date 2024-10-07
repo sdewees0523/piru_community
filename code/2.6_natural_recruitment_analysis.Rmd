@@ -10,6 +10,8 @@ library(here)
 library(tidyverse)
 library(lubridate)
 library(patchwork)
+library(lme4)
+library(lmerTest)
 ```
 
 ```{r}
@@ -28,8 +30,11 @@ percent_cover <- read.csv(here("data", "clean_data", "percent_cover_clean.csv"))
   drop_na()
   
   
-natural_recruitment <- read.csv(here("data", "raw_data", "natural_recruitment.csv")) %>% 
+natural_recruitment_species <- read.csv(here("data", "raw_data", "natural_recruitment.csv")) %>% 
   mutate(date = mdy(date)) %>% 
+  left_join(percent_cover, by = c("plot", "date"))
+
+natural_recruitment <- natural_recruitment_species%>% 
   group_by(plot, date) %>% 
   reframe(present = sum(present)) %>% 
   mutate(present = case_when(present > 0 ~ 1,
@@ -52,7 +57,7 @@ soil_moisture <- read.csv(here("data", "clean_data", "soil_moisture_clean.csv"))
   group_by(plot) %>% 
   reframe(soil_moisture = mean(soil_moisture))
 
-natural_recruitment_enviro <- natural_recruitment %>% 
+natural_recruitment_enviro <- natural_recruitment_species %>% 
   left_join(par, by = "plot") %>% 
   left_join(soil_moisture, by = "plot")
 
@@ -69,49 +74,62 @@ figure_5 <- ggplot(percent_cover, aes(x = native, y = nonnative)) +
        y = "Percent nonnative cover")
 
 ggsave("figure5.png", figure_5, path = here("figures"), width = 4, height = 4, units = "in")
+```
 
+```{r}
+
+native_model <- glmer(present~native + (1|species), family = binomial, data = natural_recruitment_species)
+summary(native_model)
+nonnative_model <- glmer(present~nonnative + (1|species), family = binomial, data = natural_recruitment_species)
+summary(nonnative_model)
+
+natural_recruitment_models <- natural_recruitment_species %>% 
+  mutate(native_model = predict(native_model, type = "response"),
+         nonnative_model = predict(nonnative_model, type = "response"))
 
 summary(glm(present~native, family = "binomial", data = natural_recruitment))
 summary(glm(present~nonnative, family = "binomial", data = natural_recruitment))
 
-figure_6a <- ggplot(natural_recruitment, aes(x = native, y = present)) +
+figure_6a <- ggplot(natural_recruitment_models, aes(x = native, y = present, col = species, group = species)) +
   geom_point(alpha = 0.25)+
-  geom_text(aes(x = 5, y = 0.9, label = "p < 0.01"))+
-  geom_smooth(method = glm, 
-              method.args = list("binomial")) +
+  geom_text(aes(x = 5, y = 0.9, label = "p < 0.01"), col = "black")+
+  geom_line(aes(y= native_model)) +
   theme_classic() +
   labs(x = "Percent native cover",
        y = "Natural recruitment")
 
 
-figure_6b <- ggplot(natural_recruitment, aes(x = nonnative, y = present)) +
+figure_6b <- ggplot(natural_recruitment_models, aes(x = nonnative, y = present, col = species, group = species)) +
   geom_point(alpha = 0.25)+
   geom_text(aes(x = 10, y = 0.9, label = "p = 0.024"))+
-  geom_smooth(method = glm, 
-              method.args = list("binomial")) +
+  geom_line(aes(y = nonnative_model)) +
   theme_classic() +
   labs(x = "Percent nonnative cover",
        y = "Natural recruitment")
 ```
 
 ```{r}
-summary(glm(present~par, family = "binomial", data = natural_recruitment_enviro))
-summary(glm(present~soil_moisture , family = "binomial", data = natural_recruitment_enviro))
+par_model <- glmer(present~par + (1|species), family = "binomial", data = natural_recruitment_enviro)
+summary(par_model)
+soil_moisture_model <- glmer(present~soil_moisture + (1|species) , family = "binomial", data = natural_recruitment_enviro)
+summary(soil_moisture_model)
+
+natural_recruitment_enviro_models <- natural_recruitment_enviro %>% 
+  mutate(par_model = predict(par_model, type = "response"),
+         soil_model = predict(soil_moisture_model, type = "response"))
 
 
-figure_6c <- ggplot(natural_recruitment_enviro, aes(x = par, y = present)) +
+figure_6c <- ggplot(natural_recruitment_enviro_models, aes(x = par, y = present, col = species, group = species)) +
   geom_point(alpha = 0.25)+
-  geom_smooth(method = glm,
-              method.args = list("binomial")) +
+  geom_line(aes(y = par_model)) +
   geom_text(aes(x = 0.7, y = 0.9, label = "p = 0.032")) +
   theme_classic() +
   labs(x = "PAR", 
        y = "Natural recruitment")
 
-figure_6d <- ggplot(natural_recruitment_enviro, aes(x = soil_moisture, y = present)) +
+figure_6d <- ggplot(natural_recruitment_enviro_models, aes(x = soil_moisture, y = present, col = species, group = species)) +
   geom_point(alpha = 0.25)+
-  geom_smooth(method = glm,
-              method.args = list("binomial")) +
+  geom_smooth(aes(y = soil_model)) +
   geom_text(aes(x = 8.5, y = 0.9, label = "p = 0.11")) +
   theme_classic() +
   labs(x = "Soil Moisture (%)", 
@@ -152,12 +170,12 @@ max_vpd <- vpd %>%
   group_by(plot) %>% 
   reframe(vpd = mean(vpd))
 
-natural_recruitment_ibutton <- natural_recruitment %>% 
+natural_recruitment_ibutton <- natural_recruitment_species %>% 
   left_join(max_temperature, by = "plot") %>% 
   left_join(max_vpd, by = "plot")
 
-summary(glm(present~temperature, family = "binomial", data = natural_recruitment_ibutton))
-summary(glm(present~vpd, family = "binomial", data = natural_recruitment_ibutton))
+summary(glmer(present~temperature + (1|species), family = "binomial", data = natural_recruitment_ibutton))
+summary(glmer(present~vpd + (1|species), family = "binomial", data = natural_recruitment_ibutton))
 
 ```
 
